@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  crm-api:
+    build: .
+    container_name: business_crm_lead_api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=sqlite:///./crm_lead_management.db
+    volumes:
+      - crm_data:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  crm_data:
