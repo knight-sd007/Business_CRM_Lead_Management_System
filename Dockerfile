@@ -29,10 +29,12 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH="/usr/local/lib/python3.12/site-packages:/app" \
+    LD_LIBRARY_PATH="/usr/local/lib:/usr/lib" \
     PATH="/usr/local/bin:$PATH"
 
-# Copy CPython 3.12 binaries and standard library from builder
+# Copy CPython 3.12 binaries, shared libraries, and standard library from builder
 COPY --from=builder /usr/local/bin/python3* /usr/local/bin/
+COPY --from=builder /usr/local/lib/libpython3* /usr/local/lib/
 COPY --from=builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
 
 # Copy required dynamic shared libraries for SQLite, ctypes, bz2, and lzma
