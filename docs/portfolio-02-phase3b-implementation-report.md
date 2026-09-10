@@ -66,7 +66,7 @@ GitHub Push (main)
 
 ### 4.2. Host Isolation & Secret Protection
 - **Target OCI Directory**: `/opt/projects/crm-api/`
-- **Host `.env` File**: `/opt/projects/crm-api/.env` (Permissions `chmod 600`, owned by `jenkins:jenkins` / `root:root`).
+- **Host `.env` File**: `/opt/projects/business-crm/.env` (Permissions `chmod 600`, owned by `jenkins:jenkins` / `root:root`).
 - **Required Production Environment Variables**:
   - `ENVIRONMENT=production`
   - `SECRET_KEY=<production-secret-key-min-32-chars>`
@@ -91,7 +91,7 @@ If a new deployment fails runtime or public verification:
 2. An operator can instantly roll back on the OCI host without data loss:
    ```bash
    P02_IMAGE="knightprime007/business-crm-lead-api:<PREVIOUS_GIT_SHA>" \
-   docker compose --env-file /opt/projects/crm-api/.env -f /opt/projects/crm-api/docker-compose.yml up -d
+   docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/crm-api/docker-compose.yml up -d
    ```
 3. The database file `/app/data/crm_lead_management.db` inside volume `crm_data` remains preserved.
 
@@ -103,7 +103,7 @@ If a new deployment fails runtime or public verification:
 | :--- | :--- |
 | **Jenkins Credential** | `docker-hub-credentials` pre-existing in Jenkins credential store. |
 | **OCI Host Target Dir** | `sudo mkdir -p /opt/projects/crm-api/ && sudo chown -R jenkins:jenkins /opt/projects/crm-api/` |
-| **OCI Production `.env`** | Create `/opt/projects/crm-api/.env` with `chmod 600` containing production secrets. |
+| **OCI Production `.env`** | Provisioned on OCI at `/opt/projects/business-crm/.env` with `chmod 600`. |
 | **Cloudflare Ingress Rule** | Add route in Cloudflare Tunnel for `crm.vaikuntrix.in` -> `http://127.0.0.1:8000`. |
 | **Cloudflare DNS** | Ensure CNAME `crm.vaikuntrix.in` points to the active Cloudflare Tunnel target. |
 

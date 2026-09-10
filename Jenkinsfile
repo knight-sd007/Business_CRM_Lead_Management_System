@@ -86,13 +86,13 @@ pipeline {
                 script {
                     echo "Deploying P02 image ${IMAGE_FULL_TAG} to OCI host..."
                     sh """
-                        if [ ! -f /opt/projects/crm-api/.env ]; then
-                            echo "ERROR: Production environment file /opt/projects/crm-api/.env not found on OCI host!"
+                        if [ ! -f /opt/projects/business-crm/.env ]; then
+                            echo "ERROR: Production environment file /opt/projects/business-crm/.env not found on OCI host!"
                             exit 1
                         fi
                         cp docker-compose.yml /opt/projects/crm-api/docker-compose.yml
-                        P02_IMAGE="${IMAGE_FULL_TAG}" docker compose --env-file /opt/projects/crm-api/.env -f /opt/projects/crm-api/docker-compose.yml pull
-                        P02_IMAGE="${IMAGE_FULL_TAG}" docker compose --env-file /opt/projects/crm-api/.env -f /opt/projects/crm-api/docker-compose.yml up -d
+                        P02_IMAGE="${IMAGE_FULL_TAG}" docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/crm-api/docker-compose.yml pull
+                        P02_IMAGE="${IMAGE_FULL_TAG}" docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/crm-api/docker-compose.yml up -d
                     """
                 }
             }
