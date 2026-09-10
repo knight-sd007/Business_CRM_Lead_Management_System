@@ -1,5 +1,5 @@
 # Stage 1: Build dependencies
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 WORKDIR /build
 
@@ -10,18 +10,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+COPY requirements-runtime.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements-runtime.txt
 
 
 # Stage 2: Minimal hardened runtime
-FROM python:3.12-slim AS runner
+FROM python:3.12-slim-bookworm AS runner
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
+
+# Apply Debian package security updates and clean package cache
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create unprivileged system user and group
 RUN groupadd -r -g 10001 appgroup && \
