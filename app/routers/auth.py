@@ -3,16 +3,23 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import User, UserRole
-from app.schemas import UserCreate, UserResponse, LoginRequest, TokenResponse
+from app.schemas import UserCreate, UserResponse, LoginRequest, LoginResponse
 from app.services.auth_service import AuthService, create_access_token
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_roles
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register_user(payload: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user identity."""
+def register_user(
+    payload: UserCreate,
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new CRM user account.
+    Restricted exclusively to authenticated administrators (ADMIN role).
+    """
     auth_service = AuthService(db)
 
     if auth_service.get_user_by_email(payload.email):
@@ -27,17 +34,16 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)):
             detail="Username is already taken."
         )
 
-    # Automatically grant ADMIN role to the first registered bootstrap user
-    if auth_service.count_users() == 0:
-        payload.role = UserRole.ADMIN
-
     user = auth_service.create_user(payload)
     return user
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    """Authenticate credentials, set secure session cookie, and return token."""
+    """
+    Authenticate credentials and establish a secure HTTP-only session cookie.
+    Does not expose raw access tokens in the JSON response body.
+    """
     auth_service = AuthService(db)
     user = auth_service.authenticate_user(payload.username_or_email, payload.password)
 
@@ -68,11 +74,11 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         path=settings.COOKIE_PATH
     )
 
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
+    return LoginResponse(
+        message="Authentication successful",
         user=user
     )
+
 
 
 @router.post("/logout")

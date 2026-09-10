@@ -119,3 +119,18 @@ def test_production_weak_secret_key_fails_closed(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "short_key")
     with pytest.raises(ValueError, match="Insecure or default SECRET_KEY"):
         Settings()
+
+
+def test_cookie_security_attributes(client, admin_user):
+    """Verify session cookie contains HttpOnly, Path=/, and SameSite=lax attributes."""
+    response = client.post("/api/v1/auth/login", json={
+        "username_or_email": admin_user.username,
+        "password": "AdminPass123!"
+    })
+    assert response.status_code == 200
+    set_cookie_header = response.headers.get("set-cookie", "").lower()
+
+    assert "crm_session=" in set_cookie_header
+    assert "httponly" in set_cookie_header
+    assert "samesite=lax" in set_cookie_header
+    assert "path=/" in set_cookie_header

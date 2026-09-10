@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     COOKIE_HTTPONLY: bool = True
     COOKIE_PATH: str = "/"
 
+
+    # Environment-Driven Admin Bootstrap Configuration (Optional / Startup only)
+    BOOTSTRAP_ADMIN_EMAIL: Optional[str] = None
+    BOOTSTRAP_ADMIN_USERNAME: Optional[str] = None
+    BOOTSTRAP_ADMIN_PASSWORD: Optional[str] = None
+    BOOTSTRAP_ADMIN_FULL_NAME: str = "System Administrator"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

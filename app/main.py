@@ -14,7 +14,25 @@ logger = logging.getLogger("crm_lead_management")
 async def lifespan(app: FastAPI):
     # Create database tables dynamically on server startup
     Base.metadata.create_all(bind=engine)
+
+    # Safe environment-driven bootstrap admin initialization
+    if settings.BOOTSTRAP_ADMIN_EMAIL and settings.BOOTSTRAP_ADMIN_PASSWORD:
+        from app.database import SessionLocal
+        from app.services.auth_service import AuthService
+        db = SessionLocal()
+        try:
+            auth_service = AuthService(db)
+            username = settings.BOOTSTRAP_ADMIN_USERNAME or settings.BOOTSTRAP_ADMIN_EMAIL.split("@")[0]
+            auth_service.bootstrap_admin_user(
+                email=settings.BOOTSTRAP_ADMIN_EMAIL,
+                username=username,
+                password=settings.BOOTSTRAP_ADMIN_PASSWORD,
+                full_name=settings.BOOTSTRAP_ADMIN_FULL_NAME
+            )
+        finally:
+            db.close()
     yield
+
 
 
 app = FastAPI(

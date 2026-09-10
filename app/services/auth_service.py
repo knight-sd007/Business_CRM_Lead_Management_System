@@ -92,3 +92,34 @@ class AuthService:
 
     def count_users(self) -> int:
         return self.db.query(User).count()
+
+    def bootstrap_admin_user(
+        self,
+        email: str,
+        username: str,
+        password: str,
+        full_name: str = "System Administrator"
+    ) -> Optional[User]:
+        """
+        Idempotently bootstrap the initial administrator account on startup.
+        Does nothing if an account with this email or username already exists.
+        """
+        existing = self.db.query(User).filter(
+            or_(User.email == email, User.username == username)
+        ).first()
+        if existing:
+            return None
+
+        password_hash = hash_password(password)
+        admin_user = User(
+            email=email,
+            username=username,
+            full_name=full_name,
+            role=UserRole.ADMIN,
+            password_hash=password_hash,
+            is_active=True
+        )
+        self.db.add(admin_user)
+        self.db.commit()
+        self.db.refresh(admin_user)
+        return admin_user

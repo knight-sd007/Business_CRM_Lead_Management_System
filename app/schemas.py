@@ -46,10 +46,10 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=1)
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class LoginResponse(BaseModel):
+    message: str = "Authentication successful"
     user: UserResponse
+
 
 
 
