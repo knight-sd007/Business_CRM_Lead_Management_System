@@ -37,11 +37,12 @@ COPY --from=builder /usr/local/bin/python3* /usr/local/bin/
 COPY --from=builder /usr/local/lib/libpython3* /usr/local/lib/
 COPY --from=builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
 
-# Copy required dynamic shared libraries for SQLite, ctypes, bz2, and lzma
+# Copy required dynamic shared libraries for SQLite, ctypes, bz2, lzma, and zlib
 COPY --from=builder /usr/lib/*-linux-gnu*/libsqlite3.so.0* /usr/lib/
 COPY --from=builder /usr/lib/*-linux-gnu*/libffi.so.8* /usr/lib/
 COPY --from=builder /usr/lib/*-linux-gnu*/libbz2.so.1.0* /usr/lib/
 COPY --from=builder /usr/lib/*-linux-gnu*/liblzma.so.5* /usr/lib/
+COPY --from=builder /usr/lib/*-linux-gnu*/libz.so.1* /usr/lib/
 
 # Copy isolated production packages from builder
 COPY --from=builder /install/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages

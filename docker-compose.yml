@@ -6,7 +6,7 @@ services:
     container_name: business_crm_lead_api
     ports:
       # Bind exclusively to loopback interface to prevent unauthorized external network exposure
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8000"
     environment:
       - ENVIRONMENT=production
       - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/crm_lead_management.db}

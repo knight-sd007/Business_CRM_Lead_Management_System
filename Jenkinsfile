@@ -105,8 +105,8 @@ pipeline {
                         MAX_ATTEMPTS=15
                         SLEEP_SECONDS=2
                         CURL_TIMEOUT=2
-                        HEALTH_URL="http://127.0.0.1:8000/health"
-                        DOCS_URL="http://127.0.0.1:8000/docs"
+                        HEALTH_URL="http://127.0.0.1:8001/health"
+                        DOCS_URL="http://127.0.0.1:8001/docs"
 
                         echo "Layer 1 Verification: Bounded readiness check for internal application health (\$HEALTH_URL)..."
 
