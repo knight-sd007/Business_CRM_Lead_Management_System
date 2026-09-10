@@ -13,7 +13,7 @@ Phase 3B implements the automated production deployment pipeline for `Business_C
 The pipeline extends the Phase 1 & 3A CI quality gates (Gitleaks, pytest, coverage, Trivy) with:
 1. **Multi-Arch ARM64 Build (`buildx`)**: Produces immutable `linux/arm64` container images tagged with the 7-character Git SHA (`knightprime007/business-crm-lead-api:<GIT_SHA>`) and the mutable `:latest` tag.
 2. **Automated Docker Hub Publication**: Securely logs in via Jenkins credentials (`docker-hub-credentials`) and publishes both tags upon passing Trivy HIGH/CRITICAL vulnerability scanning.
-3. **Atomic OCI Deployment**: Deploys the immutable image tag to `/opt/projects/crm-api/` using Docker Compose while mounting the isolated SQLite persistent volume (`crm_data:/app/data`).
+3. **Atomic OCI Deployment**: Deploys the immutable image tag to `/opt/projects/business-crm/` using Docker Compose while mounting the isolated SQLite persistent volume (`crm_data:/app/data`).
 4. **3-Layer Bounded Health Verification**:
    - **Layer 1 (Internal App & Identity)**: Polls `http://127.0.0.1:8000/health` (HTTP 200) and `http://127.0.0.1:8000/docs`, and verifies that the running container image matches `${IMAGE_FULL_TAG}`.
    - **Layer 2 (Cloudflare Tunnel)**: Verifies the `cloudflared` daemon is active on the host.
@@ -65,7 +65,7 @@ GitHub Push (main)
 - Bound in pipeline using `withCredentials([usernamePassword(...)])` and passed via `docker login --password-stdin`.
 
 ### 4.2. Host Isolation & Secret Protection
-- **Target OCI Directory**: `/opt/projects/crm-api/`
+- **Target OCI Directory**: `/opt/projects/business-crm/`
 - **Host `.env` File**: `/opt/projects/business-crm/.env` (Permissions `chmod 600`, owned by `jenkins:jenkins` / `root:root`).
 - **Required Production Environment Variables**:
   - `ENVIRONMENT=production`
@@ -91,7 +91,7 @@ If a new deployment fails runtime or public verification:
 2. An operator can instantly roll back on the OCI host without data loss:
    ```bash
    P02_IMAGE="knightprime007/business-crm-lead-api:<PREVIOUS_GIT_SHA>" \
-   docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/crm-api/docker-compose.yml up -d
+   docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/business-crm/docker-compose.yml up -d
    ```
 3. The database file `/app/data/crm_lead_management.db` inside volume `crm_data` remains preserved.
 
@@ -102,7 +102,7 @@ If a new deployment fails runtime or public verification:
 | Prerequisite Item | Status / Action Required |
 | :--- | :--- |
 | **Jenkins Credential** | `docker-hub-credentials` pre-existing in Jenkins credential store. |
-| **OCI Host Target Dir** | `sudo mkdir -p /opt/projects/crm-api/ && sudo chown -R jenkins:jenkins /opt/projects/crm-api/` |
+| **OCI Host Target Dir** | `sudo mkdir -p /opt/projects/business-crm/ && sudo chown -R jenkins:jenkins /opt/projects/business-crm/` |
 | **OCI Production `.env`** | Provisioned on OCI at `/opt/projects/business-crm/.env` with `chmod 600`. |
 | **Cloudflare Ingress Rule** | Add route in Cloudflare Tunnel for `crm.vaikuntrix.in` -> `http://127.0.0.1:8000`. |
 | **Cloudflare DNS** | Ensure CNAME `crm.vaikuntrix.in` points to the active Cloudflare Tunnel target. |

@@ -28,7 +28,7 @@ In accordance with strict environment boundaries:
 | **4. Build ARM64 Image** | `docker buildx build --platform linux/arm64` | Generates `knightprime007/business-crm-lead-api:1708de4` & `:latest`. | Hardened Distroless CC runtime with Python 3.12. |
 | **5. Container Security Scan** | `aquasec/trivy:latest` | 0 HIGH / 0 CRITICAL vulnerabilities (`--exit-code 1`). | Verified clean in Distroless runner. |
 | **6. Push Docker Hub** | `docker login` via `docker-hub-credentials` | Publishes `knightprime007/business-crm-lead-api:1708de4` and `:latest`. | Dependent on Jenkins pipeline execution. |
-| **7. Deploy OCI** | `docker compose pull & up -d` | Deploys to `/opt/projects/crm-api/` with named volume `crm_data:/app/data`. | Requires pre-provisioned `/opt/projects/business-crm/.env`. |
+| **7. Deploy OCI** | `docker compose pull & up -d` | Deploys to `/opt/projects/business-crm/` with named volume `crm_data:/app/data`. | Requires pre-provisioned `/opt/projects/business-crm/.env`. |
 | **8. Post-Deployment Verification** | 3-Layer Healthcheck | **Layer 1:** `127.0.0.1:8000/health` (200 OK) + Container image SHA match.<br>**Layer 2:** `cloudflared` daemon active.<br>**Layer 3:** `https://crm.vaikuntrix.in/health` returns 200 OK. | Layer 3 edge responding through Cloudflare WAF. |
 | **9. OCI Disk Cleanup** | `docker rmi` obsolete tags | Prunes dangling layers; preserves `1708de4`, `:latest`, and `crm_data` volume. | Targeted non-destructive cleanup. |
 
@@ -42,7 +42,7 @@ In accordance with strict environment boundaries:
 - **Authentication:** Credentials managed securely via Jenkins `docker-hub-credentials`.
 
 ### 3.2. OCI Runtime Evidence
-- **Host Deployment Path:** `/opt/projects/crm-api/`
+- **Host Deployment Path:** `/opt/projects/business-crm/`
 - **Persistence:** SQLite database `/app/data/crm_lead_management.db` on named volume `crm_data`.
 - **Port Isolation:** Loopback binding `127.0.0.1:8000:8000` (no public port exposure).
 
@@ -59,5 +59,5 @@ If any stage in Build #7 detects a regression:
 2. The previous immutable image can be instantly restored on OCI:
    ```bash
    P02_IMAGE="knightprime007/business-crm-lead-api:<PREVIOUS_GIT_SHA>" \
-   docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/crm-api/docker-compose.yml up -d
+   docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/business-crm/docker-compose.yml up -d
    ```

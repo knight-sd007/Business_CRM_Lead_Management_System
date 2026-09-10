@@ -90,9 +90,9 @@ pipeline {
                             echo "ERROR: Production environment file /opt/projects/business-crm/.env not found on OCI host!"
                             exit 1
                         fi
-                        cp docker-compose.yml /opt/projects/crm-api/docker-compose.yml
-                        P02_IMAGE="${IMAGE_FULL_TAG}" docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/crm-api/docker-compose.yml pull
-                        P02_IMAGE="${IMAGE_FULL_TAG}" docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/crm-api/docker-compose.yml up -d
+                        cp docker-compose.yml /opt/projects/business-crm/docker-compose.yml
+                        P02_IMAGE="${IMAGE_FULL_TAG}" docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/business-crm/docker-compose.yml pull
+                        P02_IMAGE="${IMAGE_FULL_TAG}" docker compose --env-file /opt/projects/business-crm/.env -f /opt/projects/business-crm/docker-compose.yml up -d
                     """
                 }
             }
