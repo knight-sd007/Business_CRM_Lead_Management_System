@@ -2,22 +2,24 @@ version: '3.8'
 
 services:
   crm-api:
-    build: .
+    image: ${P02_IMAGE:?P02_IMAGE must be set}
     container_name: business_crm_lead_api
     ports:
       # Bind exclusively to loopback interface to prevent unauthorized external network exposure
       - "127.0.0.1:8000:8000"
     environment:
       - ENVIRONMENT=production
-      - DATABASE_URL=sqlite:///./crm_lead_management.db
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/crm_lead_management.db}
       - SECRET_KEY=${SECRET_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://crm.vaikuntrix.in}
     volumes:
-      - crm_data:/app
+      - crm_data:/app/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      test: ["CMD", "/usr/local/bin/python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
 volumes:
   crm_data:

@@ -45,8 +45,9 @@ COPY --from=builder /usr/lib/*-linux-gnu*/liblzma.so.5* /usr/lib/
 COPY --from=builder /install/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /install/bin/uvicorn /usr/local/bin/uvicorn
 
-# Copy application source code with nonroot ownership
+# Copy application source code and data directory with nonroot ownership
 COPY --chown=65532:65532 app/ ./app/
+COPY --from=builder --chown=65532:65532 /app/data /app/data
 
 USER nonroot:nonroot
 
