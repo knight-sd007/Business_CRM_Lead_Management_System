@@ -1,12 +1,36 @@
 """
 Synthetic Seed Script for Business CRM Lead Management System.
-Populates the local database with safe, realistic synthetic demo data.
+Populates the local database with safe, realistic synthetic demo data and test users.
 """
 
 from app.database import SessionLocal, engine, Base
-from app.models import Lead, ActivityLog, LeadStatus, LeadPriority, ActivityType
+from app.models import Lead, ActivityLog, LeadStatus, LeadPriority, ActivityType, User, UserRole
 from app.services.scoring_engine import calculate_lead_qualification_score
+from app.services.auth_service import hash_password
 
+SYNTHETIC_USERS = [
+    {
+        "email": "admin@crm.example.com",
+        "username": "admin",
+        "full_name": "CRM Administrator",
+        "role": UserRole.ADMIN,
+        "password": "AdminPassword123!"
+    },
+    {
+        "email": "manager@crm.example.com",
+        "username": "manager",
+        "full_name": "Sales Manager",
+        "role": UserRole.MANAGER,
+        "password": "ManagerPassword123!"
+    },
+    {
+        "email": "rep@crm.example.com",
+        "username": "salesrep",
+        "full_name": "Alex Rivera",
+        "role": UserRole.REP,
+        "password": "RepPassword123!"
+    }
+]
 
 SYNTHETIC_LEADS = [
     {
@@ -86,32 +110,48 @@ def seed_database():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        if db.query(Lead).count() > 0:
-            print("Database already contains data. Skipping seed operation.")
-            return
-
-        print("Seeding synthetic leads into local database...")
-        for lead_data in SYNTHETIC_LEADS:
-            lead = Lead(**lead_data)
-            score, priority, _ = calculate_lead_qualification_score(lead)
-            lead.qualification_score = score
-            lead.priority = priority
-
-            db.add(lead)
+        # Seed Users
+        if db.query(User).count() == 0:
+            print("Seeding synthetic users into database...")
+            for user_data in SYNTHETIC_USERS:
+                raw_pwd = user_data["password"]
+                user = User(
+                    email=user_data["email"],
+                    username=user_data["username"],
+                    full_name=user_data["full_name"],
+                    role=user_data["role"],
+                    password_hash=hash_password(raw_pwd),
+                    is_active=True
+                )
+                db.add(user)
             db.commit()
-            db.refresh(lead)
+            print(f"Successfully seeded {len(SYNTHETIC_USERS)} users.")
 
-            # Add initial activity log
-            activity = ActivityLog(
-                lead_id=lead.id,
-                activity_type=ActivityType.NOTE,
-                description=f"Synthetic demo lead seeded. Initial score: {score} ({priority.value}).",
-                performed_by="Seed Script"
-            )
-            db.add(activity)
-            db.commit()
+        # Seed Leads
+        if db.query(Lead).count() == 0:
+            print("Seeding synthetic leads into database...")
+            for lead_data in SYNTHETIC_LEADS:
+                lead = Lead(**lead_data)
+                score, priority, _ = calculate_lead_qualification_score(lead)
+                lead.qualification_score = score
+                lead.priority = priority
 
-        print(f"Successfully seeded {len(SYNTHETIC_LEADS)} synthetic leads into database.")
+                db.add(lead)
+                db.commit()
+                db.refresh(lead)
+
+                activity = ActivityLog(
+                    lead_id=lead.id,
+                    activity_type=ActivityType.NOTE,
+                    description=f"Synthetic demo lead seeded. Initial score: {score} ({priority.value}).",
+                    performed_by="Seed Script"
+                )
+                db.add(activity)
+                db.commit()
+
+            print(f"Successfully seeded {len(SYNTHETIC_LEADS)} synthetic leads into database.")
+        else:
+            print("Leads already exist in database. Skipping lead seed operation.")
     finally:
         db.close()
 

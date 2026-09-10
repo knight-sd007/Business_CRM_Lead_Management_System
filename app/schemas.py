@@ -1,7 +1,56 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from app.models import LeadStatus, LeadPriority, ActivityType
+from app.models import LeadStatus, LeadPriority, ActivityType, UserRole
+
+
+class UserBase(BaseModel):
+    email: EmailStr
+    username: str = Field(..., min_length=3, max_length=100)
+    full_name: str = Field(..., min_length=1, max_length=100)
+    role: UserRole = UserRole.REP
+    is_active: bool = True
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    username: str = Field(..., min_length=3, max_length=100)
+    full_name: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=8, max_length=128)
+    role: Optional[UserRole] = UserRole.REP
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    email: EmailStr
+    username: str
+    full_name: str
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class LoginRequest(BaseModel):
+    username_or_email: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=1)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
 
 
 class ActivityLogBase(BaseModel):

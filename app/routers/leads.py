@@ -1,24 +1,43 @@
 import csv
 import io
-from typing import Optional
+from typing import Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import LeadStatus
+from app.models import LeadStatus, User, UserRole
 from app.schemas import (
     LeadCreate, LeadUpdate, LeadResponse, PaginatedLeadResponse,
     ActivityLogCreate, ActivityLogResponse, LeadScoreBreakdown
 )
 from app.services.lead_service import LeadService
 from app.services.scoring_engine import calculate_lead_qualification_score
+from app.dependencies import get_current_user, require_roles
 
 router = APIRouter(prefix="/leads", tags=["Leads"])
 
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n", "%")
+
+
+def sanitize_csv_cell(value: Any) -> Any:
+    """Neutralize potential CSV formula injection payloads by prepending a single quote."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        if value.startswith(FORMULA_PREFIXES):
+            return f"'{value}"
+    return value
+
 
 @router.post("", response_model=LeadResponse, status_code=status.HTTP_201_CREATED)
-def create_lead(payload: LeadCreate, db: Session = Depends(get_db)):
+def create_lead(
+    payload: LeadCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     service = LeadService(db)
-    return service.create_lead(payload)
+    # Default performed_by to current authenticated user
+    lead = service.create_lead(payload)
+    return lead
 
 
 @router.get("", response_model=PaginatedLeadResponse)
@@ -31,6 +50,7 @@ def list_leads(
     search: Optional[str] = None,
     sort_by: str = Query("created_at", pattern="^(created_at|qualification_score|annual_revenue|company_size)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     service = LeadService(db)
@@ -41,7 +61,10 @@ def list_leads(
 
 
 @router.get("/export/csv")
-def export_leads_csv(db: Session = Depends(get_db)):
+def export_leads_csv(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     service = LeadService(db)
     leads_data = service.get_leads_paginated(page=1, size=10000)["items"]
 
@@ -54,10 +77,19 @@ def export_leads_csv(db: Session = Depends(get_db)):
 
     for lead in leads_data:
         writer.writerow([
-            lead.id, lead.first_name, lead.last_name, lead.email, lead.company_name,
-            lead.job_title or "", lead.industry or "", lead.annual_revenue,
-            lead.qualification_score, lead.status.value, lead.priority.value,
-            lead.assigned_owner or "", lead.created_at.isoformat()
+            sanitize_csv_cell(lead.id),
+            sanitize_csv_cell(lead.first_name),
+            sanitize_csv_cell(lead.last_name),
+            sanitize_csv_cell(lead.email),
+            sanitize_csv_cell(lead.company_name),
+            sanitize_csv_cell(lead.job_title or ""),
+            sanitize_csv_cell(lead.industry or ""),
+            lead.annual_revenue,
+            lead.qualification_score,
+            lead.status.value,
+            lead.priority.value,
+            sanitize_csv_cell(lead.assigned_owner or ""),
+            lead.created_at.isoformat()
         ])
 
     output.seek(0)
@@ -69,7 +101,11 @@ def export_leads_csv(db: Session = Depends(get_db)):
 
 
 @router.get("/{lead_id}", response_model=LeadResponse)
-def get_lead(lead_id: str, db: Session = Depends(get_db)):
+def get_lead(
+    lead_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     service = LeadService(db)
     lead = service.get_lead(lead_id)
     if not lead:
@@ -78,7 +114,12 @@ def get_lead(lead_id: str, db: Session = Depends(get_db)):
 
 
 @router.put("/{lead_id}", response_model=LeadResponse)
-def update_lead(lead_id: str, payload: LeadUpdate, db: Session = Depends(get_db)):
+def update_lead(
+    lead_id: str,
+    payload: LeadUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     service = LeadService(db)
     lead = service.update_lead(lead_id, payload)
     if not lead:
@@ -87,7 +128,11 @@ def update_lead(lead_id: str, payload: LeadUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_lead(lead_id: str, db: Session = Depends(get_db)):
+def delete_lead(
+    lead_id: str,
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER)),
+    db: Session = Depends(get_db)
+):
     service = LeadService(db)
     success = service.delete_lead(lead_id)
     if not success:
@@ -96,7 +141,11 @@ def delete_lead(lead_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{lead_id}/score-breakdown", response_model=LeadScoreBreakdown)
-def get_score_breakdown(lead_id: str, db: Session = Depends(get_db)):
+def get_score_breakdown(
+    lead_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     service = LeadService(db)
     lead = service.get_lead(lead_id)
     if not lead:
@@ -112,8 +161,15 @@ def get_score_breakdown(lead_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{lead_id}/activities", response_model=ActivityLogResponse, status_code=status.HTTP_201_CREATED)
-def add_activity(lead_id: str, payload: ActivityLogCreate, db: Session = Depends(get_db)):
+def add_activity(
+    lead_id: str,
+    payload: ActivityLogCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     service = LeadService(db)
+    if payload.performed_by == "System" and current_user.full_name:
+        payload.performed_by = current_user.full_name
     activity = service.add_activity(lead_id, payload)
     if not activity:
         raise HTTPException(status_code=404, detail="Lead not found.")

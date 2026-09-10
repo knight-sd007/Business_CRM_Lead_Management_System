@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Enum as SQLEnum, Text
+from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, Boolean
 from sqlalchemy.orm import relationship
 import enum
 from app.database import Base
@@ -8,6 +8,27 @@ from app.database import Base
 
 def utc_now():
     return datetime.now(timezone.utc)
+
+
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    MANAGER = "manager"
+    REP = "rep"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    full_name = Column(String(100), nullable=False)
+    role = Column(SQLEnum(UserRole), default=UserRole.REP, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
 
 class LeadStatus(str, enum.Enum):
@@ -33,6 +54,7 @@ class ActivityType(str, enum.Enum):
     EMAIL = "Email"
     MEETING = "Meeting"
     STATUS_CHANGE = "Status Change"
+
 
 
 class Lead(Base):

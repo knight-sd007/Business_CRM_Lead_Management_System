@@ -67,3 +67,20 @@ def test_scoring_tier_mid_points():
     assert factors["company_size"] == 20
     assert factors["job_title"] == 15
     assert factors["industry"] == 20
+
+
+def test_seed_database_execution(monkeypatch, test_db):
+    from app import seed
+    from app.models import User, Lead
+
+    # Monkeypatch SessionLocal to point to in-memory test database
+    monkeypatch.setattr(seed, "SessionLocal", lambda: test_db)
+
+    # Test seed execution
+    seed.seed_database()
+    assert test_db.query(User).count() >= 3
+    assert test_db.query(Lead).count() >= 5
+
+    # Test subsequent run skips
+    seed.seed_database()
+    assert test_db.query(User).count() >= 3

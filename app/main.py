@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
-from app.routers import leads
+from app.routers import leads, auth
 
 logger = logging.getLogger("crm_lead_management")
 
@@ -25,16 +25,20 @@ app = FastAPI(
 )
 
 cors_origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
+# Disallow credentials with wildcard origins to prevent browser security rejection
+allow_credentials = False if "*" in cors_origins else True
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(leads.router, prefix=settings.API_V1_PREFIX)
+
 
 
 @app.exception_handler(Exception)

@@ -1,7 +1,7 @@
 import os
-from typing import Union, List
+from typing import Union, List, Optional
 from dotenv import load_dotenv
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 # Load .env file into environment if present
@@ -19,8 +19,20 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     API_V1_PREFIX: str = "/api/v1"
     DATABASE_URL: str = "sqlite:///./crm_lead_management.db"
-    CORS_ORIGINS: Union[List[str], str] = ["*"]
-    SECRET_KEY: str = "default_secret_key_for_dev_only"
+    CORS_ORIGINS: Union[List[str], str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000"
+    ]
+    SECRET_KEY: str = ""
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    COOKIE_NAME: str = "crm_session"
+    COOKIE_SECURE: Optional[bool] = None
+    COOKIE_SAMESITE: str = "lax"
+    COOKIE_HTTPONLY: bool = True
+    COOKIE_PATH: str = "/"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -34,6 +46,21 @@ class Settings(BaseSettings):
                     pass
             return [i.strip() for i in v.split(",") if i.strip()]
         return v
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        env = self.ENVIRONMENT.lower()
+        if env == "production":
+            if not self.SECRET_KEY or self.SECRET_KEY == "default_secret_key_for_dev_only" or len(self.SECRET_KEY) < 32:
+                raise ValueError(
+                    "Insecure or default SECRET_KEY is not permitted in production. "
+                    "A strong SECRET_KEY (minimum 32 characters) must be configured."
+                )
+            if "*" in self.CORS_ORIGINS:
+                raise ValueError("Wildcard CORS origin '*' is not permitted in production environment.")
+        elif not self.SECRET_KEY or self.SECRET_KEY == "default_secret_key_for_dev_only":
+            self.SECRET_KEY = "dev_insecure_secret_key_for_local_testing_only_32_chars"
+        return self
 
 
 settings = Settings()
