@@ -15,13 +15,13 @@ def test_default_settings_resolution():
 def test_custom_environment_variable_override(monkeypatch):
     monkeypatch.setenv("APP_NAME", "Custom CRM Test Name")
     monkeypatch.setenv("ENVIRONMENT", "testing")
-    monkeypatch.setenv("SECRET_KEY", "dummy_test_secret_12345")
+    monkeypatch.setenv("SECRET_KEY", "test-override-key-value")
     monkeypatch.setenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
 
     custom_settings = Settings()
     assert custom_settings.APP_NAME == "Custom CRM Test Name"
     assert custom_settings.ENVIRONMENT == "testing"
-    assert custom_settings.SECRET_KEY == "dummy_test_secret_12345"
+    assert custom_settings.SECRET_KEY == "test-override-key-value"
     assert custom_settings.CORS_ORIGINS == ["http://localhost:3000", "http://localhost:8000"]
 
 
