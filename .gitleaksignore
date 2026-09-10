@@ -1,0 +1,4 @@
+# Gitleaks ignore list for verified historical synthetic test fixtures
+# Commit 26adc0b81fa731c07069a4a1f093660fa75dff9f (Initial Release)
+26adc0b81fa731c07069a4a1f093660fa75dff9f:tests/test_config.py:generic-api-key:18
+26adc0b81fa731c07069a4a1f093660fa75dff9f:tests/test_config.py:generic-api-key:24
