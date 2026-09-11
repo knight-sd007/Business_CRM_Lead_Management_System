@@ -19,6 +19,15 @@ templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(tags=["Web UI"], default_response_class=HTMLResponse)
 
 
+@router.get("/", response_class=RedirectResponse)
+def root_redirect():
+    """
+    Root Web landing route.
+    Redirects public browser navigation to the login portal.
+    """
+    return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(
     request: Request,

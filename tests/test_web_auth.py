@@ -22,6 +22,21 @@ def extract_csrf_token(html_text: str) -> str:
     return match.group(1)
 
 
+def test_root_route_redirects_to_login(client):
+    """Verify GET / returns HTTP 303 with Location: /login."""
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers.get("location") == "/login"
+
+
+def test_root_route_follow_redirects_reaches_login(client):
+    """Verify GET / with follow_redirects=True successfully resolves at /login."""
+    response = client.get("/", follow_redirects=True)
+    assert response.status_code == 200
+    assert "Account Sign In" in response.text
+    assert "csrf_token" in response.text
+
+
 def test_get_login_page_renders_html(client):
     """Verify GET /login returns 200 with HTML content and embedded CSRF token."""
     response = client.get("/login")
