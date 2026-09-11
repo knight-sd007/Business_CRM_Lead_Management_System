@@ -287,3 +287,33 @@ def test_is_safe_url_unit():
     assert is_safe_url("//example.com") is False
     assert is_safe_url(r"/\example.com") is False
     assert is_safe_url("javascript:void(0)") is False
+
+
+def test_openapi_schema_excludes_browser_routes(client):
+    """Verify browser Web UI routes are excluded from /openapi.json schema."""
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    schema = response.json()
+    paths = schema.get("paths", {})
+
+    # Browser Web UI routes must NOT appear in OpenAPI schema
+    assert "/" not in paths
+    assert "/login" not in paths
+    assert "/logout" not in paths
+
+
+def test_openapi_schema_retains_rest_api_routes(client):
+    """Verify programmatic REST API endpoints remain present in /openapi.json."""
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    schema = response.json()
+    paths = schema.get("paths", {})
+
+    # REST API and Health routes MUST appear in OpenAPI schema
+    assert "/api/v1/auth/register" in paths
+    assert "/api/v1/auth/login" in paths
+    assert "/api/v1/auth/logout" in paths
+    assert "/api/v1/auth/me" in paths
+    assert "/api/v1/leads" in paths
+    assert "/api/v1/leads/{lead_id}" in paths
+    assert "/health" in paths

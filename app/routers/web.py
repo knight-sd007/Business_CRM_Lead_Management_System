@@ -16,7 +16,7 @@ from app.dependencies import (
 
 templates = Jinja2Templates(directory="app/templates")
 
-router = APIRouter(tags=["Web UI"], default_response_class=HTMLResponse)
+router = APIRouter(include_in_schema=False, default_response_class=HTMLResponse)
 
 
 @router.get("/", response_class=RedirectResponse)
