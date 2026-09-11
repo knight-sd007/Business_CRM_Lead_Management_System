@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - Business CRM{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">Account Sign In</h1>
+            <p class="auth-subtitle">Enter your credentials to access the CRM portal</p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error" role="alert">
+            <span class="alert-icon">&times;</span>
+            <span class="alert-message">{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form action="/login" method="POST" class="auth-form" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+
+            <div class="form-group">
+                <label for="username_or_email" class="form-label">Username or Email</label>
+                <input 
+                    type="text" 
+                    id="username_or_email" 
+                    name="username_or_email" 
+                    class="form-control" 
+                    required 
+                    autocomplete="username"
+                    autofocus
+                    placeholder="e.g. admin or admin@example.com"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="form-control" 
+                    required 
+                    autocomplete="current-password"
+                    placeholder="Enter password"
+                >
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

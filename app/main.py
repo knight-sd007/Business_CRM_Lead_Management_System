@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine, Base
-from app.routers import leads, auth
+from app.routers import leads, auth, web
 
 logger = logging.getLogger("crm_lead_management")
 
@@ -54,6 +55,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+app.include_router(web.router)
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(leads.router, prefix=settings.API_V1_PREFIX)
 
