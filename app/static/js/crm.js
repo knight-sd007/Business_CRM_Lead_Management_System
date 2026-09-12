@@ -116,4 +116,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     });
+
+    // 5. Back-Forward Cache (bfcache) Revalidation
+    window.addEventListener("pageshow", (event) => {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
 });
+

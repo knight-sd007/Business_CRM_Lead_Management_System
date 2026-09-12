@@ -21,6 +21,13 @@ templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(include_in_schema=False, default_response_class=HTMLResponse)
 
 
+NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 @router.get("/", response_class=RedirectResponse)
 def root_redirect(request: Request, db: Session = Depends(get_db)):
     """
@@ -34,8 +41,16 @@ def root_redirect(request: Request, db: Session = Depends(get_db)):
             auth_service = AuthService(db)
             user = auth_service.get_user_by_id(payload["sub"])
             if user and user.is_active:
-                return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
-    return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+                return RedirectResponse(
+                    url="/dashboard",
+                    status_code=status.HTTP_303_SEE_OTHER,
+                    headers=NO_CACHE_HEADERS
+                )
+    return RedirectResponse(
+        url="/login",
+        status_code=status.HTTP_303_SEE_OTHER,
+        headers=NO_CACHE_HEADERS
+    )
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -44,7 +59,24 @@ def login_page(
     next: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Render the server-side HTML login page."""
+    """
+    Render the server-side HTML login page.
+    Redirects already-authenticated users to /dashboard to avoid stale login states upon back-navigation.
+    """
+    token = get_token_from_request(request)
+    if token:
+        payload = decode_access_token(token)
+        if payload and "sub" in payload:
+            auth_service = AuthService(db)
+            user = auth_service.get_user_by_id(payload["sub"])
+            if user and user.is_active:
+                destination = next if (is_safe_url(next) and next != "/login") else "/dashboard"
+                return RedirectResponse(
+                    url=destination,
+                    status_code=status.HTTP_303_SEE_OTHER,
+                    headers=NO_CACHE_HEADERS
+                )
+
     safe_next = next if is_safe_url(next) else None
     csrf_token = generate_csrf_token()
     return templates.TemplateResponse(
@@ -54,7 +86,8 @@ def login_page(
             "csrf_token": csrf_token,
             "next": safe_next,
             "error": None
-        }
+        },
+        headers=NO_CACHE_HEADERS
     )
 
 
@@ -84,7 +117,8 @@ def login_submit(
                 "next": safe_next,
                 "error": "Invalid or expired security token. Please try again."
             },
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_400_BAD_REQUEST,
+            headers=NO_CACHE_HEADERS
         )
 
     # 2. Authenticate User Credentials
@@ -101,14 +135,19 @@ def login_submit(
                 "next": safe_next,
                 "error": "Invalid username/email or password."
             },
-            status_code=status.HTTP_401_UNAUTHORIZED
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers=NO_CACHE_HEADERS
         )
 
     # 3. Establish Authenticated Session
     token = create_access_token(user)
     destination = safe_next or "/dashboard"
 
-    response = RedirectResponse(url=destination, status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(
+        url=destination,
+        status_code=status.HTTP_303_SEE_OTHER,
+        headers=NO_CACHE_HEADERS
+    )
 
     is_secure = settings.COOKIE_SECURE if settings.COOKIE_SECURE is not None else (settings.ENVIRONMENT.lower() == "production")
     response.set_cookie(
@@ -143,7 +182,8 @@ def dashboard_page(
             "user": current_user,
             "summary": summary,
             "csrf_token": csrf_token
-        }
+        },
+        headers=NO_CACHE_HEADERS
     )
 
 
@@ -163,7 +203,11 @@ def logout_submit(
             detail="Invalid or expired CSRF token."
         )
 
-    response = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(
+        url="/login",
+        status_code=status.HTTP_303_SEE_OTHER,
+        headers=NO_CACHE_HEADERS
+    )
     response.delete_cookie(
         key=settings.COOKIE_NAME,
         path=settings.COOKIE_PATH

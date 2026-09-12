@@ -262,3 +262,15 @@ def test_tc_dash_15_design_system_layout_elements(auth_client):
     assert "mobile-nav-toggle" in html
     assert "nav-menu-wrapper" in html
     assert "/static/js/crm.js" in html
+
+
+def test_tc_dash_16_clean_navigation_no_broken_leads_link(auth_client):
+    """TC-DASH-16: Leads navigation does not render a dead/broken href link before Phase 2E implementation."""
+    response = auth_client.get("/dashboard")
+    assert response.status_code == 200
+    html = response.text
+    # Should not have active clickable link to unimplemented /leads
+    assert 'href="/leads"' not in html
+    assert "nav-link-disabled" in html
+    assert "Coming in P2E" in html
+

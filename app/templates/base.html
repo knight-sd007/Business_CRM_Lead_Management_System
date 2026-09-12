@@ -19,7 +19,7 @@
                 <div class="nav-menu-wrapper">
                     <nav class="nav-menu" aria-label="Main Navigation">
                         <a href="/dashboard" class="nav-link {% if request.url.path == '/dashboard' or request.url.path == '/' %}active{% endif %}">Dashboard</a>
-                        <a href="/leads" class="nav-link {% if request.url.path.startswith('/leads') %}active{% endif %}">Leads <span class="nav-link-badge">P2E</span></a>
+                        <span class="nav-link nav-link-disabled" title="Lead Management Module - Coming in Phase 2E" aria-disabled="true">Leads <span class="nav-link-badge">Coming in P2E</span></span>
                     </nav>
                     <div class="user-nav">
                         <div class="user-identity">

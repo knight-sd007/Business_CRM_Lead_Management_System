@@ -184,6 +184,7 @@ def test_open_redirect_attempts_rejected(client, admin_user):
     ]
 
     for target in malicious_targets:
+        client.cookies.clear()
         get_res = client.get(f"/login?next={target}")
         csrf_token = extract_csrf_token(get_res.text)
 
@@ -317,3 +318,35 @@ def test_openapi_schema_retains_rest_api_routes(client):
     assert "/api/v1/leads" in paths
     assert "/api/v1/leads/{lead_id}" in paths
     assert "/health" in paths
+
+
+def test_authenticated_get_login_redirects_to_dashboard(auth_client):
+    """Verify already-authenticated user requesting GET /login is redirected to /dashboard."""
+    response = auth_client.get("/login", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers.get("location") == "/dashboard"
+    assert "no-cache" in response.headers.get("cache-control", "").lower()
+    assert "no-store" in response.headers.get("cache-control", "").lower()
+
+
+def test_authenticated_get_login_with_next_redirects_to_next(auth_client):
+    """Verify authenticated user with safe next param is redirected to that target from /login."""
+    response = auth_client.get("/login?next=/safe-route", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers.get("location") == "/safe-route"
+
+
+def test_web_routes_cache_control_headers(client, auth_client):
+    """Verify browser Web UI routes emit proper Cache-Control and Pragma headers to prevent stale history display."""
+    res_login = client.get("/login")
+    assert res_login.status_code == 200
+    assert "no-cache" in res_login.headers.get("cache-control", "").lower()
+    assert "no-store" in res_login.headers.get("cache-control", "").lower()
+    assert res_login.headers.get("pragma") == "no-cache"
+
+    res_dash = auth_client.get("/dashboard")
+    assert res_dash.status_code == 200
+    assert "no-cache" in res_dash.headers.get("cache-control", "").lower()
+    assert "no-store" in res_dash.headers.get("cache-control", "").lower()
+    assert res_dash.headers.get("pragma") == "no-cache"
+
