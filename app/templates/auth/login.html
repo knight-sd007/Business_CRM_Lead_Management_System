@@ -12,8 +12,10 @@
 
         {% if error %}
         <div class="alert alert-error" role="alert">
-            <span class="alert-icon">&times;</span>
-            <span class="alert-message">{{ error }}</span>
+            <div class="alert-content">
+                <span class="alert-icon">&times;</span>
+                <span class="alert-message">{{ error }}</span>
+            </div>
         </div>
         {% endif %}
 

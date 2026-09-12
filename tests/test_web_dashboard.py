@@ -244,3 +244,21 @@ def test_tc_dash_13_openapi_schema_isolation(client):
     assert "/api/v1/leads" in paths
     assert "/api/v1/leads/{lead_id}" in paths
     assert "/health" in paths
+
+
+def test_tc_dash_14_static_crm_js_served(client):
+    """TC-DASH-14: Static crm.js progressive enhancement script is served correctly."""
+    response = client.get("/static/js/crm.js")
+    assert response.status_code == 200
+    assert any(mime in response.headers.get("content-type", "") for mime in ["javascript", "text/plain"])
+    assert "DOMContentLoaded" in response.text
+
+
+def test_tc_dash_15_design_system_layout_elements(auth_client):
+    """TC-DASH-15: Design system shell elements (mobile toggle, navigation wrapper, crm.js) render in dashboard."""
+    response = auth_client.get("/dashboard")
+    assert response.status_code == 200
+    html = response.text
+    assert "mobile-nav-toggle" in html
+    assert "nav-menu-wrapper" in html
+    assert "/static/js/crm.js" in html
