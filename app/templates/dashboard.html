@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Business CRM{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title">CRM Executive Dashboard</h1>
+            <p class="dashboard-subtitle">Pipeline overview, lead qualification metrics, and recent activity</p>
+        </div>
+        <div class="dashboard-user-greeting">
+            <span>Welcome back, <strong>{{ user.full_name }}</strong></span>
+            <span class="role-badge role-badge-{{ user.role.value }}">
+                {%- if user.role.value == 'admin' -%}
+                    Admin
+                {%- elif user.role.value == 'manager' -%}
+                    Manager
+                {%- elif user.role.value == 'rep' -%}
+                    Sales Rep
+                {%- else -%}
+                    {{ user.role.value }}
+                {%- endif -%}
+            </span>
+        </div>
+    </div>
+
+    <!-- KPI Metric Cards Grid -->
+    <section class="kpi-grid" aria-label="Key Performance Indicators">
+        <div class="kpi-card">
+            <div class="kpi-label">Total Leads</div>
+            <div class="kpi-value" id="kpi-total-leads">{{ summary.total_leads }}</div>
+            <div class="kpi-meta">All registered records</div>
+        </div>
+        <div class="kpi-card kpi-card-success">
+            <div class="kpi-label">Qualified Leads</div>
+            <div class="kpi-value" id="kpi-qualified-leads">{{ summary.qualified_leads }}</div>
+            <div class="kpi-meta">Sales-ready opportunities</div>
+        </div>
+        <div class="kpi-card kpi-card-warning">
+            <div class="kpi-label">Unqualified Leads</div>
+            <div class="kpi-value" id="kpi-unqualified-leads">{{ summary.unqualified_leads }}</div>
+            <div class="kpi-meta">Disqualified or lost fit</div>
+        </div>
+        <div class="kpi-card kpi-card-primary">
+            <div class="kpi-label">Pipeline Value</div>
+            <div class="kpi-value" id="kpi-pipeline-value">${{ "{:,.2f}".format(summary.total_pipeline_value) }}</div>
+            <div class="kpi-meta">Cumulative prospect revenue</div>
+        </div>
+        <div class="kpi-card kpi-card-info">
+            <div class="kpi-label">Avg Qualification Score</div>
+            <div class="kpi-value" id="kpi-avg-score">{{ summary.avg_qualification_score }} <span class="kpi-subtext">/ 100</span></div>
+            <div class="kpi-meta">Scoring engine mean</div>
+        </div>
+    </section>
+
+    <!-- Distribution Grids -->
+    <div class="distribution-grid">
+        <!-- Status Distribution -->
+        <section class="dashboard-panel" aria-label="Lead Status Breakdown">
+            <div class="panel-header">
+                <h2 class="panel-title">Pipeline Status Distribution</h2>
+            </div>
+            <div class="distribution-list">
+                {% for status_name, count in summary.status_counts.items() %}
+                <div class="distribution-item">
+                    <span class="status-badge status-{{ status_name | lower | replace(' ', '-') }}">{{ status_name }}</span>
+                    <span class="distribution-count">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Priority Distribution -->
+        <section class="dashboard-panel" aria-label="Lead Priority Breakdown">
+            <div class="panel-header">
+                <h2 class="panel-title">Priority Classification</h2>
+            </div>
+            <div class="distribution-list">
+                {% for priority_name, count in summary.priority_counts.items() %}
+                <div class="distribution-item">
+                    <span class="priority-badge priority-{{ priority_name | lower }}">{{ priority_name }}</span>
+                    <span class="distribution-count">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <!-- Recent Leads Section -->
+    <section class="dashboard-panel" aria-label="Recent Leads">
+        <div class="panel-header">
+            <h2 class="panel-title">Recent Leads</h2>
+            <span class="panel-meta">Latest 5 entries</span>
+        </div>
+        {% if summary.recent_leads %}
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Score</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in summary.recent_leads %}
+                    <tr>
+                        <td class="font-medium">{{ lead.company_name }}</td>
+                        <td>{{ lead.first_name }} {{ lead.last_name }}</td>
+                        <td>
+                            <span class="status-badge status-{{ lead.status.value | lower | replace(' ', '-') }}">{{ lead.status.value }}</span>
+                        </td>
+                        <td>
+                            <span class="priority-badge priority-{{ lead.priority.value | lower }}">{{ lead.priority.value }}</span>
+                        </td>
+                        <td>
+                            <span class="score-pill score-{{ 'high' if lead.qualification_score >= 75 else ('mid' if lead.qualification_score >= 40 else 'low') }}">{{ lead.qualification_score }}</span>
+                        </td>
+                        <td class="text-muted">{{ lead.created_at.strftime('%Y-%m-%d %H:%M') if lead.created_at else 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p class="empty-state-text">No leads found in the system.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

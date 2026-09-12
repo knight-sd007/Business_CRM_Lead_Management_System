@@ -72,7 +72,7 @@ def test_web_login_success_establishes_session(client, admin_user):
         follow_redirects=False
     )
     assert post_res.status_code == 303
-    assert post_res.headers.get("location") == "/"
+    assert post_res.headers.get("location") == "/dashboard"
     assert "crm_session" in post_res.cookies
     cookie_header = post_res.headers.get("set-cookie", "").lower()
     assert "httponly" in cookie_header
@@ -198,8 +198,8 @@ def test_open_redirect_attempts_rejected(client, admin_user):
             follow_redirects=False
         )
         assert post_res.status_code == 303
-        # Should fallback to default safe destination ("/")
-        assert post_res.headers.get("location") == "/"
+        # Should fallback to default safe destination ("/dashboard")
+        assert post_res.headers.get("location") == "/dashboard"
 
 
 def test_protected_web_dependency_redirects_unauthenticated(client):

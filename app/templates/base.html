@@ -14,10 +14,35 @@
                     <span class="brand-badge">CRM</span>
                     <span class="brand-title">Lead Management</span>
                 </a>
+                {% if user %}
+                <nav class="nav-menu">
+                    <a href="/dashboard" class="nav-link active">Dashboard</a>
+                </nav>
+                <div class="user-nav">
+                    <div class="user-identity">
+                        <span class="user-name">{{ user.full_name }}</span>
+                        <span class="role-badge role-badge-{{ user.role.value }}">
+                            {%- if user.role.value == 'admin' -%}
+                                Admin
+                            {%- elif user.role.value == 'manager' -%}
+                                Manager
+                            {%- elif user.role.value == 'rep' -%}
+                                Sales Rep
+                            {%- else -%}
+                                {{ user.role.value }}
+                            {%- endif -%}
+                        </span>
+                    </div>
+                    <form action="/logout" method="POST" class="logout-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Sign Out</button>
+                    </form>
+                </div>
+                {% endif %}
             </div>
         </header>
 
-        <main class="main-content">
+        <main class="main-content{% if user %} main-dashboard{% endif %}">
             {% block content %}{% endblock %}
         </main>
 

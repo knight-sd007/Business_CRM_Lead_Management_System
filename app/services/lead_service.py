@@ -1,7 +1,7 @@
 import math
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, desc, asc
+from sqlalchemy import or_, desc, asc, func
 from app.models import Lead, ActivityLog, ActivityType, LeadStatus, LeadPriority
 from app.schemas import LeadCreate, LeadUpdate, ActivityLogCreate
 from app.services.scoring_engine import calculate_lead_qualification_score
@@ -10,6 +10,43 @@ from app.services.scoring_engine import calculate_lead_qualification_score
 class LeadService:
     def __init__(self, db: Session):
         self.db = db
+
+    def get_dashboard_summary(self) -> dict:
+        """
+        Aggregate CRM pipeline metrics for the authenticated dashboard.
+        Safely handles empty databases with zero fallbacks.
+        """
+        total_leads = self.db.query(func.count(Lead.id)).scalar() or 0
+
+        status_rows = self.db.query(Lead.status, func.count(Lead.id)).group_by(Lead.status).all()
+        status_dict = {status: count for status, count in status_rows}
+        status_counts = {s.value: status_dict.get(s, 0) for s in LeadStatus}
+
+        priority_rows = self.db.query(Lead.priority, func.count(Lead.id)).group_by(Lead.priority).all()
+        priority_dict = {priority: count for priority, count in priority_rows}
+        priority_counts = {p.value: priority_dict.get(p, 0) for p in LeadPriority}
+
+        qualified_leads = status_dict.get(LeadStatus.QUALIFIED, 0)
+        unqualified_leads = status_dict.get(LeadStatus.UNQUALIFIED, 0)
+
+        total_pipeline_val = self.db.query(func.coalesce(func.sum(Lead.annual_revenue), 0.0)).scalar()
+        total_pipeline_value = float(total_pipeline_val) if total_pipeline_val is not None else 0.0
+
+        avg_score_val = self.db.query(func.coalesce(func.avg(Lead.qualification_score), 0.0)).scalar()
+        avg_qualification_score = round(float(avg_score_val), 1) if avg_score_val is not None else 0.0
+
+        recent_leads = self.db.query(Lead).order_by(desc(Lead.created_at)).limit(5).all()
+
+        return {
+            "total_leads": total_leads,
+            "qualified_leads": qualified_leads,
+            "unqualified_leads": unqualified_leads,
+            "total_pipeline_value": total_pipeline_value,
+            "avg_qualification_score": avg_qualification_score,
+            "status_counts": status_counts,
+            "priority_counts": priority_counts,
+            "recent_leads": recent_leads
+        }
 
     def create_lead(self, payload: LeadCreate) -> Lead:
         lead = Lead(**payload.model_dump())

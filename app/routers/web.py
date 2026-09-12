@@ -6,12 +6,14 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import User
-from app.services.auth_service import AuthService, create_access_token
+from app.services.auth_service import AuthService, create_access_token, decode_access_token
+from app.services.lead_service import LeadService
 from app.dependencies import (
     get_current_user_web,
     generate_csrf_token,
     validate_csrf_token,
-    is_safe_url
+    is_safe_url,
+    get_token_from_request
 )
 
 templates = Jinja2Templates(directory="app/templates")
@@ -20,11 +22,19 @@ router = APIRouter(include_in_schema=False, default_response_class=HTMLResponse)
 
 
 @router.get("/", response_class=RedirectResponse)
-def root_redirect():
+def root_redirect(request: Request, db: Session = Depends(get_db)):
     """
     Root Web landing route.
-    Redirects public browser navigation to the login portal.
+    Redirects authenticated users to /dashboard and unauthenticated users to /login.
     """
+    token = get_token_from_request(request)
+    if token:
+        payload = decode_access_token(token)
+        if payload and "sub" in payload:
+            auth_service = AuthService(db)
+            user = auth_service.get_user_by_id(payload["sub"])
+            if user and user.is_active:
+                return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -96,7 +106,7 @@ def login_submit(
 
     # 3. Establish Authenticated Session
     token = create_access_token(user)
-    destination = safe_next or "/"
+    destination = safe_next or "/dashboard"
 
     response = RedirectResponse(url=destination, status_code=status.HTTP_303_SEE_OTHER)
 
@@ -112,6 +122,29 @@ def login_submit(
     )
 
     return response
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+def dashboard_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_web),
+    db: Session = Depends(get_db)
+):
+    """
+    Render the authenticated Business CRM web dashboard.
+    """
+    lead_service = LeadService(db)
+    summary = lead_service.get_dashboard_summary()
+    csrf_token = generate_csrf_token(user_id=current_user.id)
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "user": current_user,
+            "summary": summary,
+            "csrf_token": csrf_token
+        }
+    )
 
 
 @router.post("/logout")
