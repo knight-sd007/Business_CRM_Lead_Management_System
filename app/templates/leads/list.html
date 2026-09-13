@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Leads Workspace - Business CRM{% endblock %}
+
+{% block content %}
+<div class="leads-workspace-container">
+    <!-- Page Header -->
+    <div class="workspace-header">
+        <div>
+            <div class="workspace-title-row">
+                <h1 class="workspace-title">Leads Workspace</h1>
+                <span class="badge badge-count" id="leads-total-badge">{{ total }} Lead{% if total != 1 %}s{% endif %}</span>
+            </div>
+            <p class="workspace-subtitle">Central lead pipeline management, qualification scoring, and account tracking</p>
+        </div>
+        <div class="workspace-actions">
+            <a href="/api/v1/leads/export/csv" class="btn btn-secondary btn-sm" id="export-csv-btn" download>
+                <span class="btn-icon">&#128190;</span> Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Search & Filter Glass Toolbar -->
+    <section class="glass-card leads-toolbar" aria-label="Lead Filters and Search">
+        <form action="/leads" method="GET" class="leads-filter-form" role="search">
+            <!-- Row 1: Search & Core Filters -->
+            <div class="filter-grid">
+                <div class="filter-group filter-search">
+                    <label for="filter-search" class="filter-label">Search</label>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        id="filter-search" 
+                        class="form-control" 
+                        placeholder="Search name, email, or company..." 
+                        value="{{ search_query }}"
+                    >
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-status" class="filter-label">Status</label>
+                    <select name="status" id="filter-status" class="form-control">
+                        <option value="">All Statuses</option>
+                        {% for st in statuses %}
+                        <option value="{{ st }}" {% if selected_status == st %}selected{% endif %}>{{ st }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-industry" class="filter-label">Industry</label>
+                    <input 
+                        type="text" 
+                        name="industry" 
+                        id="filter-industry" 
+                        class="form-control" 
+                        placeholder="Filter industry..." 
+                        value="{{ selected_industry }}"
+                    >
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-min-score" class="filter-label">Min Score</label>
+                    <input 
+                        type="number" 
+                        name="min_score" 
+                        id="filter-min-score" 
+                        class="form-control" 
+                        placeholder="0 - 100" 
+                        min="0" 
+                        max="100" 
+                        value="{{ selected_min_score }}"
+                    >
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-sort-by" class="filter-label">Sort By</label>
+                    <select name="sort_by" id="filter-sort-by" class="form-control">
+                        <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Created Date</option>
+                        <option value="qualification_score" {% if sort_by == 'qualification_score' %}selected{% endif %}>Qualification Score</option>
+                        <option value="annual_revenue" {% if sort_by == 'annual_revenue' %}selected{% endif %}>Annual Revenue</option>
+                        <option value="company_size" {% if sort_by == 'company_size' %}selected{% endif %}>Company Size</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-sort-order" class="filter-label">Order</label>
+                    <select name="sort_order" id="filter-sort-order" class="form-control">
+                        <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descending</option>
+                        <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Filter Actions -->
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm" id="apply-filters-btn">Apply Filters</button>
+                {% if has_active_filters %}
+                <a href="/leads" class="btn btn-outline btn-sm" id="reset-filters-btn">Reset Filters</a>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+
+    <!-- Leads Data Section -->
+    {% if total > 0 %}
+    <!-- Desktop / Tablet Data Table Surface -->
+    <section class="leads-table-container glass-card" aria-label="Leads Directory">
+        <div class="table-responsive">
+            <table class="data-table leads-table">
+                <thead>
+                    <tr>
+                        <th>Company & Contact</th>
+                        <th>Job Title</th>
+                        <th>Industry</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Score</th>
+                        <th>Assigned Owner</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    <tr class="lead-row" data-lead-id="{{ lead.id }}">
+                        <td class="lead-primary-cell">
+                            <div class="lead-company-name">{{ lead.company_name }}</div>
+                            <div class="lead-contact-sub">
+                                <span>{{ lead.first_name }} {{ lead.last_name }}</span>
+                                <span class="bullet-divider">&bull;</span>
+                                <span class="lead-email">{{ lead.email }}</span>
+                            </div>
+                        </td>
+                        <td>{{ lead.job_title or '—' }}</td>
+                        <td><span class="industry-badge">{{ lead.industry or '—' }}</span></td>
+                        <td>
+                            <span class="status-badge status-{{ lead.status.value | lower | replace(' ', '-') }}">{{ lead.status.value }}</span>
+                        </td>
+                        <td>
+                            <span class="priority-badge priority-{{ lead.priority.value | lower }}">{{ lead.priority.value }}</span>
+                        </td>
+                        <td>
+                            <span class="score-pill score-{{ 'high' if lead.qualification_score >= 75 else ('mid' if lead.qualification_score >= 40 else 'low') }}">{{ lead.qualification_score }}</span>
+                        </td>
+                        <td>
+                            <span class="owner-tag">{{ lead.assigned_owner or 'Unassigned' }}</span>
+                        </td>
+                        <td class="text-muted">{{ lead.created_at.strftime('%Y-%m-%d') if lead.created_at else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Transformed Cards (Shown exclusively on <768px via CSS) -->
+        <div class="leads-mobile-list" aria-label="Leads Cards for Mobile">
+            {% for lead in leads %}
+            <article class="lead-mobile-card glass-card-subtle">
+                <div class="mobile-card-header">
+                    <div>
+                        <h2 class="mobile-company-name">{{ lead.company_name }}</h2>
+                        <div class="mobile-contact-name">{{ lead.first_name }} {{ lead.last_name }}</div>
+                    </div>
+                    <span class="score-pill score-{{ 'high' if lead.qualification_score >= 75 else ('mid' if lead.qualification_score >= 40 else 'low') }}">{{ lead.qualification_score }}</span>
+                </div>
+                <div class="mobile-card-body">
+                    <div class="mobile-info-item">
+                        <span class="mobile-info-label">Email:</span>
+                        <span class="mobile-info-value">{{ lead.email }}</span>
+                    </div>
+                    {% if lead.job_title %}
+                    <div class="mobile-info-item">
+                        <span class="mobile-info-label">Title:</span>
+                        <span class="mobile-info-value">{{ lead.job_title }}</span>
+                    </div>
+                    {% endif %}
+                    {% if lead.industry %}
+                    <div class="mobile-info-item">
+                        <span class="mobile-info-label">Industry:</span>
+                        <span class="mobile-info-value">{{ lead.industry }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="mobile-info-item">
+                        <span class="mobile-info-label">Owner:</span>
+                        <span class="mobile-info-value">{{ lead.assigned_owner or 'Unassigned' }}</span>
+                    </div>
+                </div>
+                <div class="mobile-card-footer">
+                    <span class="status-badge status-{{ lead.status.value | lower | replace(' ', '-') }}">{{ lead.status.value }}</span>
+                    <span class="priority-badge priority-{{ lead.priority.value | lower }}">{{ lead.priority.value }}</span>
+                    <span class="mobile-date text-muted">{{ lead.created_at.strftime('%Y-%m-%d') if lead.created_at else '—' }}</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="pagination-wrapper">
+            <div class="pagination-info">
+                Showing <strong>{{ (page - 1) * size + 1 }}</strong> to <strong>{{ [page * size, total] | min }}</strong> of <strong>{{ total }}</strong> leads
+            </div>
+
+            {% if pages > 1 %}
+            <nav class="pagination-nav" aria-label="Leads Page Navigation">
+                {# Construct base query URL preserving all active filter parameters #}
+                {% set query_prefix = "?search=" ~ (search_query | urlencode) ~ "&status=" ~ (selected_status | urlencode) ~ "&industry=" ~ (selected_industry | urlencode) ~ "&min_score=" ~ (selected_min_score | urlencode) ~ "&sort_by=" ~ (sort_by | urlencode) ~ "&sort_order=" ~ (sort_order | urlencode) ~ "&size=" ~ size %}
+
+                {% if page > 1 %}
+                <a href="/leads{{ query_prefix }}&page={{ page - 1 }}" class="pagination-btn" id="pagination-prev" aria-label="Previous Page">&laquo; Prev</a>
+                {% else %}
+                <span class="pagination-btn pagination-btn-disabled" aria-disabled="true">&laquo; Prev</span>
+                {% endif %}
+
+                <div class="pagination-pages">
+                    {% for p in range(1, pages + 1) %}
+                        {% if p == page %}
+                        <span class="pagination-page-item pagination-page-active" aria-current="page">{{ p }}</span>
+                        {% elif p <= 3 or p >= pages - 1 or (p >= page - 1 and p <= page + 1) %}
+                        <a href="/leads{{ query_prefix }}&page={{ p }}" class="pagination-page-item">{{ p }}</a>
+                        {% elif p == 4 and page > 4 %}
+                        <span class="pagination-ellipsis">&hellip;</span>
+                        {% elif p == pages - 2 and page < pages - 3 %}
+                        <span class="pagination-ellipsis">&hellip;</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% if page < pages %}
+                <a href="/leads{{ query_prefix }}&page={{ page + 1 }}" class="pagination-btn" id="pagination-next" aria-label="Next Page">Next &raquo;</a>
+                {% else %}
+                <span class="pagination-btn pagination-btn-disabled" aria-disabled="true">Next &raquo;</span>
+                {% endif %}
+            </nav>
+            {% endif %}
+        </div>
+    </section>
+
+    {% elif has_active_filters %}
+    <!-- Filtered Empty State -->
+    <section class="glass-card empty-state" aria-label="No Filtered Results">
+        <div class="empty-state-icon">&#128269;</div>
+        <h2 class="empty-state-title">No matching leads found</h2>
+        <p class="empty-state-text">No leads matched your filter criteria. Try adjusting your keyword search, status, or score parameters.</p>
+        <div class="empty-state-actions">
+            <a href="/leads" class="btn btn-primary btn-sm">Clear All Filters</a>
+        </div>
+    </section>
+
+    {% else %}
+    <!-- Global Empty Database State -->
+    <section class="glass-card empty-state" aria-label="Empty Database">
+        <div class="empty-state-icon">&#128101;</div>
+        <h2 class="empty-state-title">No leads in pipeline</h2>
+        <p class="empty-state-text">Your CRM lead pipeline is currently empty. Leads will appear here as opportunities are created and tracked.</p>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

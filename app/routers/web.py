@@ -1,11 +1,11 @@
 from typing import Optional
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
-from app.models import User
+from app.models import User, LeadStatus, LeadPriority
 from app.services.auth_service import AuthService, create_access_token, decode_access_token
 from app.services.lead_service import LeadService
 from app.dependencies import (
@@ -213,3 +213,97 @@ def logout_submit(
         path=settings.COOKIE_PATH
     )
     return response
+
+
+@router.get("/leads", response_class=HTMLResponse)
+def leads_workspace(
+    request: Request,
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    industry: Optional[str] = Query(None),
+    min_score: Optional[int] = Query(None, ge=0, le=100),
+    search: Optional[str] = Query(None),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc"),
+    current_user: User = Depends(get_current_user_web),
+    db: Session = Depends(get_db)
+):
+    """
+    Render the authenticated Business CRM Leads Workspace.
+    Provides lead listing, multi-field partial substring search across name/email/company,
+    status/industry/score filtering, field sorting, pagination, and CSV export linkage.
+    """
+    # Validate and normalize status
+    status_enum = None
+    if status and status.strip():
+        try:
+            status_enum = LeadStatus(status.strip())
+        except ValueError:
+            status_enum = None
+
+    # Validate sort fields
+    allowed_sort_fields = {"created_at", "qualification_score", "annual_revenue", "company_size"}
+    if sort_by not in allowed_sort_fields:
+        sort_by = "created_at"
+
+    # Validate sort direction
+    if sort_order.lower() not in {"asc", "desc"}:
+        sort_order = "desc"
+    else:
+        sort_order = sort_order.lower()
+
+    # Clean string parameters
+    clean_search = search.strip() if search and search.strip() else None
+    clean_industry = industry.strip() if industry and industry.strip() else None
+
+    lead_service = LeadService(db)
+    result = lead_service.get_leads_paginated(
+        page=page,
+        size=size,
+        status=status_enum,
+        industry=clean_industry,
+        min_score=min_score,
+        search=clean_search,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
+    csrf_token = generate_csrf_token(user_id=current_user.id)
+    has_active_filters = bool(clean_search or status_enum or clean_industry or min_score is not None)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="leads/list.html",
+        context={
+            "user": current_user,
+            "leads_data": result,
+            "leads": result["items"],
+            "total": result["total"],
+            "page": result["page"],
+            "size": result["size"],
+            "pages": result["pages"],
+            "statuses": [s.value for s in LeadStatus],
+            "selected_status": status_enum.value if status_enum else "",
+            "selected_industry": clean_industry or "",
+            "selected_min_score": min_score if min_score is not None else "",
+            "search_query": clean_search or "",
+            "sort_by": sort_by,
+            "sort_order": sort_order,
+            "has_active_filters": has_active_filters,
+            "csrf_token": csrf_token
+        },
+        headers=NO_CACHE_HEADERS
+    )
+
+
+@router.get("/leads/export/csv")
+def leads_export_csv_web(
+    request: Request,
+    current_user: User = Depends(get_current_user_web)
+):
+    """
+    Delegate authenticated Web CSV export requests directly to the authoritative REST export endpoint.
+    """
+    return RedirectResponse(url="/api/v1/leads/export/csv", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
