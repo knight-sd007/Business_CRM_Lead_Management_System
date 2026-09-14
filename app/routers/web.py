@@ -1,3 +1,4 @@
+import urllib.parse
 from typing import Optional
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -220,7 +221,7 @@ def leads_workspace(
     request: Request,
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
-    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
     industry: Optional[str] = Query(None),
     min_score: Optional[int] = Query(None, ge=0, le=100),
     search: Optional[str] = Query(None),
@@ -236,9 +237,9 @@ def leads_workspace(
     """
     # Validate and normalize status
     status_enum = None
-    if status and status.strip():
+    if status_filter and status_filter.strip():
         try:
-            status_enum = LeadStatus(status.strip())
+            status_enum = LeadStatus(status_filter.strip())
         except ValueError:
             status_enum = None
 
@@ -272,6 +273,28 @@ def leads_workspace(
     csrf_token = generate_csrf_token(user_id=current_user.id)
     has_active_filters = bool(clean_search or status_enum or clean_industry or min_score is not None)
 
+    # Build clean query parameters for pagination links, omitting empty values
+    query_params_dict = {}
+    if clean_search:
+        query_params_dict["search"] = clean_search
+    if status_enum:
+        query_params_dict["status"] = status_enum.value
+    if clean_industry:
+        query_params_dict["industry"] = clean_industry
+    if min_score is not None:
+        query_params_dict["min_score"] = str(min_score)
+    if sort_by != "created_at" or "sort_by" in request.query_params:
+        if sort_by:
+            query_params_dict["sort_by"] = sort_by
+    if sort_order != "desc" or "sort_order" in request.query_params:
+        if sort_order:
+            query_params_dict["sort_order"] = sort_order
+    if size != 10 or "size" in request.query_params:
+        query_params_dict["size"] = str(size)
+
+    query_string = urllib.parse.urlencode(query_params_dict)
+    pagination_query_prefix = f"?{query_string}&" if query_string else "?"
+
     return templates.TemplateResponse(
         request=request,
         name="leads/list.html",
@@ -291,6 +314,7 @@ def leads_workspace(
             "sort_by": sort_by,
             "sort_order": sort_order,
             "has_active_filters": has_active_filters,
+            "pagination_query_prefix": pagination_query_prefix,
             "csrf_token": csrf_token
         },
         headers=NO_CACHE_HEADERS

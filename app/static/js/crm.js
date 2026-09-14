@@ -102,8 +102,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 4. Form Double-Submit Protection
-    document.querySelectorAll("form").forEach((form) => {
+    // 4. Form Double-Submit Protection (excluding GET filter forms)
+    document.querySelectorAll("form:not(.leads-filter-form)").forEach((form) => {
         form.addEventListener("submit", (e) => {
             if (form.dataset.submitting === "true") {
                 e.preventDefault();
@@ -123,5 +123,80 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.reload();
         }
     });
+
+    // 6. Leads Filter Form Clean Parameter Submission
+    const filterForm = document.querySelector(".leads-filter-form");
+    if (filterForm) {
+        filterForm.addEventListener("submit", (e) => {
+            handleLeadsFilterSubmit(e, filterForm);
+        });
+    }
 });
+
+/**
+ * Cleanly serialize and submit Leads Workspace filter form,
+ * omitting empty optional fields and default sort parameters from the query string.
+ */
+function handleLeadsFilterSubmit(e, form) {
+    if (e) {
+        if (typeof e.preventDefault === "function") e.preventDefault();
+        if (typeof e.stopPropagation === "function") e.stopPropagation();
+    }
+    const filterForm = form || document.querySelector(".leads-filter-form");
+    if (!filterForm) return false;
+
+    const formData = new FormData(filterForm);
+    const params = new URLSearchParams();
+
+    for (const [key, rawValue] of formData.entries()) {
+        const value = typeof rawValue === "string" ? rawValue.trim() : rawValue;
+        if (!value) {
+            continue;
+        }
+        // Omit defaults if unchanged to keep URL minimal and clean
+        if (key === "sort_by" && value === "created_at") {
+            continue;
+        }
+        if (key === "sort_order" && value === "desc") {
+            continue;
+        }
+        params.append(key, value);
+    }
+
+    // If non-default sort_by is specified with default sort_order='desc',
+    // include sort_order for explicit sorting clarity
+    const sortBy = formData.get("sort_by");
+    const sortOrder = formData.get("sort_order");
+    if (sortBy && sortBy !== "created_at" && sortOrder && !params.has("sort_order")) {
+        params.append("sort_order", sortOrder);
+    }
+
+    // Fallback defense: disable empty inputs so native GET serializer will also omit them
+    const inputs = filterForm.querySelectorAll("input, select");
+    inputs.forEach((input) => {
+        const val = input.value ? input.value.trim() : "";
+        if (!val) {
+            input.disabled = true;
+        } else if (input.name === "sort_by" && val === "created_at") {
+            input.disabled = true;
+        } else if (input.name === "sort_order" && val === "desc" && (!sortBy || sortBy === "created_at")) {
+            input.disabled = true;
+        }
+    });
+
+    const queryString = params.toString();
+    const targetUrl = queryString ? `/leads?${queryString}` : "/leads";
+
+    // Re-enable inputs after a short tick in case the user navigates back
+    setTimeout(() => {
+        inputs.forEach((input) => {
+            input.disabled = false;
+        });
+    }, 100);
+
+    window.location.assign(targetUrl);
+    return false;
+}
+
+window.handleLeadsFilterSubmit = handleLeadsFilterSubmit;
 

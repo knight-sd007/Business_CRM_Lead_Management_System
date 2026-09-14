@@ -322,3 +322,188 @@ def test_tc_leads_16_active_navigation_link_state(auth_client):
     assert response.status_code == 200
     html = response.text
     assert '<a href="/leads" class="nav-link active">Leads</a>' in html
+
+
+def test_tc_leads_17_filter_form_renders_with_clean_submission_contract(auth_client, client):
+    """TC-LEADS-17: Filter form renders with clean submission handler and crm.js progressive enhancement."""
+    # 1. Verify HTML form markup on /leads
+    response = auth_client.get("/leads")
+    assert response.status_code == 200
+    assert 'class="leads-filter-form"' in response.text
+    assert 'id="leads-filter-form"' in response.text
+    assert 'onsubmit="return handleLeadsFilterSubmit(event, this);"' in response.text
+
+    # 2. Verify crm.js static script contains the clean form serializer
+    res_js = client.get("/static/js/crm.js")
+    assert res_js.status_code == 200
+    js_content = res_js.text
+    assert "handleLeadsFilterSubmit" in js_content
+    assert "URLSearchParams" in js_content
+    assert "form:not(.leads-filter-form)" in js_content
+
+
+def test_tc_leads_18_status_only_filtering(auth_client, test_db):
+    """TC-LEADS-18: GET /leads?status=Qualified filters only matching status."""
+    lead1 = Lead(
+        first_name="Alpha", last_name="Lead", email="alpha@example.com",
+        company_name="Alpha Inc", status=LeadStatus.QUALIFIED
+    )
+    lead2 = Lead(
+        first_name="Beta", last_name="Lead", email="beta@example.com",
+        company_name="Beta Inc", status=LeadStatus.NEW
+    )
+    test_db.add_all([lead1, lead2])
+    test_db.commit()
+
+    response = auth_client.get("/leads?status=Qualified")
+    assert response.status_code == 200
+    assert "Alpha Inc" in response.text
+    assert "Beta Inc" not in response.text
+
+
+def test_tc_leads_19_industry_only_filtering(auth_client, test_db):
+    """TC-LEADS-19: GET /leads?industry=Technology filters only matching industry."""
+    lead1 = Lead(
+        first_name="Tech", last_name="Lead", email="tech@example.com",
+        company_name="Tech Solutions", industry="Technology"
+    )
+    lead2 = Lead(
+        first_name="Retail", last_name="Lead", email="retail@example.com",
+        company_name="Retail Mart", industry="Retail"
+    )
+    test_db.add_all([lead1, lead2])
+    test_db.commit()
+
+    response = auth_client.get("/leads?industry=Technology")
+    assert response.status_code == 200
+    assert "Tech Solutions" in response.text
+    assert "Retail Mart" not in response.text
+
+
+def test_tc_leads_20_min_score_only_filtering(auth_client, test_db):
+    """TC-LEADS-20: GET /leads?min_score=75 filters only leads with score >= 75."""
+    lead1 = Lead(
+        first_name="High", last_name="Score", email="high@example.com",
+        company_name="High Priority Co", qualification_score=85
+    )
+    lead2 = Lead(
+        first_name="Low", last_name="Score", email="low@example.com",
+        company_name="Low Priority Co", qualification_score=40
+    )
+    test_db.add_all([lead1, lead2])
+    test_db.commit()
+
+    response = auth_client.get("/leads?min_score=75")
+    assert response.status_code == 200
+    assert "High Priority Co" in response.text
+    assert "Low Priority Co" not in response.text
+
+
+def test_tc_leads_21_search_only_filtering(auth_client, test_db):
+    """TC-LEADS-21: GET /leads?search=Acme filters only matching search term."""
+    lead1 = Lead(
+        first_name="Wile", last_name="Coyote", email="coyote@acme.example.com",
+        company_name="Acme Corp"
+    )
+    lead2 = Lead(
+        first_name="Road", last_name="Runner", email="runner@desert.example.com",
+        company_name="Desert Fast Co"
+    )
+    test_db.add_all([lead1, lead2])
+    test_db.commit()
+
+    response = auth_client.get("/leads?search=Acme")
+    assert response.status_code == 200
+    assert "Acme Corp" in response.text
+    assert "Desert Fast Co" not in response.text
+
+
+def test_tc_leads_22_multiple_filters_and_sorting(auth_client, test_db):
+    """TC-LEADS-22: GET /leads with multiple filters and custom sorting."""
+    lead1 = Lead(
+        first_name="Wile", last_name="Coyote", email="coyote@acme.example.com",
+        company_name="Acme Corp", status=LeadStatus.QUALIFIED,
+        qualification_score=85, annual_revenue=1500000.0
+    )
+    lead2 = Lead(
+        first_name="Sylvester", last_name="Cat", email="sylvester@acme.example.com",
+        company_name="Acme Holdings", status=LeadStatus.QUALIFIED,
+        qualification_score=95, annual_revenue=2500000.0
+    )
+    lead3 = Lead(
+        first_name="Bugs", last_name="Bunny", email="bugs@other.example.com",
+        company_name="Other Corp", status=LeadStatus.NEW,
+        qualification_score=90
+    )
+    test_db.add_all([lead1, lead2, lead3])
+    test_db.commit()
+
+    url = "/leads?search=Acme&status=Qualified&min_score=75&sort_by=qualification_score&sort_order=desc"
+    response = auth_client.get(url)
+    assert response.status_code == 200
+    assert "Acme Holdings" in response.text
+    assert "Acme Corp" in response.text
+    assert "Other Corp" not in response.text
+    sylvester_pos = response.text.find("Acme Holdings")
+    coyote_pos = response.text.find("Acme Corp")
+    assert sylvester_pos < coyote_pos
+
+
+def test_tc_leads_23_invalid_non_empty_min_score_rejected_by_backend(auth_client):
+    """TC-LEADS-23: Invalid non-empty min_score values (non-integer or out-of-range) return 422."""
+    # Non-integer string
+    res_str = auth_client.get("/leads?min_score=abc")
+    assert res_str.status_code == 422
+
+    # Below minimum (0)
+    res_neg = auth_client.get("/leads?min_score=-5")
+    assert res_neg.status_code == 422
+
+    # Above maximum (100)
+    res_high = auth_client.get("/leads?min_score=150")
+    assert res_high.status_code == 422
+
+
+def test_tc_leads_24_pagination_query_preservation_omits_empty_parameters(auth_client, test_db):
+    """TC-LEADS-24: Pagination links preserve active filters and omit empty optional parameters."""
+    leads = [
+        Lead(
+            first_name=f"Lead{i:02d}",
+            last_name="Test",
+            email=f"lead{i:02d}@example.com",
+            company_name=f"Company {i:02d}",
+            status=LeadStatus.QUALIFIED,
+            industry="Technology",
+            qualification_score=80
+        )
+        for i in range(15)
+    ]
+    test_db.add_all(leads)
+    test_db.commit()
+
+    # Request with status and min_score but no search or industry
+    response = auth_client.get("/leads?page=1&size=10&status=Qualified&min_score=75")
+    assert response.status_code == 200
+    assert "page=2" in response.text
+    assert "status=Qualified" in response.text
+    assert "min_score=75" in response.text
+    # Empty parameters must NOT be present in pagination URLs
+    assert "search=" not in response.text
+    assert "industry=" not in response.text
+
+
+def test_tc_leads_25_reset_filters_clean_url(auth_client, test_db):
+    """TC-LEADS-25: When filters are active, Reset Filters links cleanly to /leads."""
+    lead = Lead(
+        first_name="Active",
+        last_name="Filter",
+        email="active@example.com",
+        company_name="Active Filter Co",
+        status=LeadStatus.QUALIFIED
+    )
+    test_db.add(lead)
+    test_db.commit()
+
+    response = auth_client.get("/leads?status=Qualified")
+    assert response.status_code == 200
+    assert 'href="/leads" class="btn btn-outline btn-sm" id="reset-filters-btn">Reset Filters</a>' in response.text
