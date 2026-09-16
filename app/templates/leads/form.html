@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Lead - Business CRM{% endblock %}
+
+{% block content %}
+<div class="lead-form-container">
+    <!-- Header with Back Link & Title -->
+    <div class="lead-form-header">
+        <div class="lead-form-back-wrapper">
+            <a href="/leads" class="btn btn-outline btn-sm" id="back-to-leads-btn">
+                &larr; Back to Leads
+            </a>
+        </div>
+        <div class="lead-form-title-group">
+            <h1 class="lead-form-title">Create New Lead</h1>
+            <p class="lead-form-subtitle">Enter contact and company profile details to initialize scoring and pipeline tracking.</p>
+        </div>
+    </div>
+
+    <!-- General Error Banner -->
+    {% if error %}
+    <div class="alert alert-error alert-dismissible" role="alert" id="form-error-banner">
+        <div class="alert-content">
+            <span class="alert-icon" aria-hidden="true">&#9888;</span>
+            <span>{{ error }}</span>
+        </div>
+        <button type="button" class="alert-close" aria-label="Close notification">&times;</button>
+    </div>
+    {% endif %}
+
+    <!-- Primary Elevated Glass Form Surface -->
+    <section class="lead-form-surface glass-card-elevated" aria-label="Lead Creation Form">
+        <form action="/leads/new" method="POST" class="lead-form" id="lead-create-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <!-- Section 1: Contact Information -->
+            <div class="form-section">
+                <h2 class="form-section-title">Contact Information</h2>
+                
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label for="first_name" class="form-label">
+                            First Name <span class="form-label-required" aria-hidden="true">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="first_name"
+                            name="first_name"
+                            class="form-control{% if errors.first_name %} form-control-invalid{% endif %}"
+                            placeholder="e.g. Sarah"
+                            value="{{ form_data.first_name|default('') }}"
+                            required
+                            aria-required="true"
+                            autocomplete="given-name"
+                            {% if errors.first_name %}aria-invalid="true" aria-describedby="error-first_name"{% endif %}
+                        >
+                        {% if errors.first_name %}
+                        <div class="form-field-error" id="error-first_name" role="alert">{{ errors.first_name }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="last_name" class="form-label">
+                            Last Name <span class="form-label-required" aria-hidden="true">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="last_name"
+                            name="last_name"
+                            class="form-control{% if errors.last_name %} form-control-invalid{% endif %}"
+                            placeholder="e.g. Connor"
+                            value="{{ form_data.last_name|default('') }}"
+                            required
+                            aria-required="true"
+                            autocomplete="family-name"
+                            {% if errors.last_name %}aria-invalid="true" aria-describedby="error-last_name"{% endif %}
+                        >
+                        {% if errors.last_name %}
+                        <div class="form-field-error" id="error-last_name" role="alert">{{ errors.last_name }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label for="email" class="form-label">
+                            Email Address <span class="form-label-required" aria-hidden="true">*</span>
+                        </label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            class="form-control{% if errors.email %} form-control-invalid{% endif %}"
+                            placeholder="sarah.connor@example.com"
+                            value="{{ form_data.email|default('') }}"
+                            required
+                            aria-required="true"
+                            autocomplete="email"
+                            inputmode="email"
+                            {% if errors.email %}aria-invalid="true" aria-describedby="error-email"{% endif %}
+                        >
+                        {% if errors.email %}
+                        <div class="form-field-error" id="error-email" role="alert">{{ errors.email }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone" class="form-label">Phone Number</label>
+                        <input
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            class="form-control{% if errors.phone %} form-control-invalid{% endif %}"
+                            placeholder="e.g. +1 (555) 019-2834"
+                            value="{{ form_data.phone|default('') }}"
+                            autocomplete="tel"
+                            inputmode="tel"
+                            {% if errors.phone %}aria-invalid="true" aria-describedby="error-phone"{% endif %}
+                        >
+                        {% if errors.phone %}
+                        <div class="form-field-error" id="error-phone" role="alert">{{ errors.phone }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-grid-1">
+                    <div class="form-group">
+                        <label for="job_title" class="form-label">Job Title</label>
+                        <input
+                            type="text"
+                            id="job_title"
+                            name="job_title"
+                            class="form-control{% if errors.job_title %} form-control-invalid{% endif %}"
+                            placeholder="e.g. Chief Technology Officer"
+                            value="{{ form_data.job_title|default('') }}"
+                            autocomplete="organization-title"
+                            {% if errors.job_title %}aria-invalid="true" aria-describedby="error-job_title"{% endif %}
+                        >
+                        {% if errors.job_title %}
+                        <div class="form-field-error" id="error-job_title" role="alert">{{ errors.job_title }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Company & Industry Profile -->
+            <div class="form-section">
+                <h2 class="form-section-title">Company &amp; Industry Profile</h2>
+
+                <div class="form-grid-1">
+                    <div class="form-group">
+                        <label for="company_name" class="form-label">
+                            Company Name <span class="form-label-required" aria-hidden="true">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="company_name"
+                            name="company_name"
+                            class="form-control{% if errors.company_name %} form-control-invalid{% endif %}"
+                            placeholder="e.g. Cyberdyne Systems"
+                            value="{{ form_data.company_name|default('') }}"
+                            required
+                            aria-required="true"
+                            autocomplete="organization"
+                            {% if errors.company_name %}aria-invalid="true" aria-describedby="error-company_name"{% endif %}
+                        >
+                        {% if errors.company_name %}
+                        <div class="form-field-error" id="error-company_name" role="alert">{{ errors.company_name }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label for="industry" class="form-label">Industry</label>
+                        <input
+                            type="text"
+                            id="industry"
+                            name="industry"
+                            class="form-control{% if errors.industry %} form-control-invalid{% endif %}"
+                            placeholder="e.g. Technology"
+                            value="{{ form_data.industry|default('Technology') }}"
+                            {% if errors.industry %}aria-invalid="true" aria-describedby="error-industry"{% endif %}
+                        >
+                        {% if errors.industry %}
+                        <div class="form-field-error" id="error-industry" role="alert">{{ errors.industry }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="company_size" class="form-label">Company Size (Employees)</label>
+                        <input
+                            type="number"
+                            id="company_size"
+                            name="company_size"
+                            min="1"
+                            class="form-control{% if errors.company_size %} form-control-invalid{% endif %}"
+                            placeholder="10"
+                            value="{{ form_data.company_size|default(10) }}"
+                            inputmode="numeric"
+                            {% if errors.company_size %}aria-invalid="true" aria-describedby="error-company_size"{% endif %}
+                        >
+                        {% if errors.company_size %}
+                        <div class="form-field-error" id="error-company_size" role="alert">{{ errors.company_size }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-grid-1">
+                    <div class="form-group">
+                        <label for="annual_revenue" class="form-label">Annual Revenue ($ USD)</label>
+                        <input
+                            type="number"
+                            id="annual_revenue"
+                            name="annual_revenue"
+                            min="0"
+                            step="0.01"
+                            class="form-control{% if errors.annual_revenue %} form-control-invalid{% endif %}"
+                            placeholder="50000.0"
+                            value="{{ form_data.annual_revenue|default(50000.0) }}"
+                            inputmode="decimal"
+                            {% if errors.annual_revenue %}aria-invalid="true" aria-describedby="error-annual_revenue"{% endif %}
+                        >
+                        {% if errors.annual_revenue %}
+                        <div class="form-field-error" id="error-annual_revenue" role="alert">{{ errors.annual_revenue }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Ownership & Notes -->
+            <div class="form-section">
+                <h2 class="form-section-title">Ownership &amp; Notes</h2>
+
+                <div class="form-grid-1">
+                    <div class="form-group">
+                        <label for="assigned_owner" class="form-label">Assigned Owner</label>
+                        <input
+                            type="text"
+                            id="assigned_owner"
+                            name="assigned_owner"
+                            class="form-control{% if errors.assigned_owner %} form-control-invalid{% endif %}"
+                            placeholder="Unassigned"
+                            value="{{ form_data.assigned_owner|default('Unassigned') }}"
+                            autocomplete="name"
+                            {% if errors.assigned_owner %}aria-invalid="true" aria-describedby="error-assigned_owner"{% endif %}
+                        >
+                        {% if errors.assigned_owner %}
+                        <div class="form-field-error" id="error-assigned_owner" role="alert">{{ errors.assigned_owner }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-grid-1">
+                    <div class="form-group">
+                        <label for="notes" class="form-label">Notes &amp; Background</label>
+                        <textarea
+                            id="notes"
+                            name="notes"
+                            rows="4"
+                            class="form-control{% if errors.notes %} form-control-invalid{% endif %}"
+                            placeholder="Key context, qualification notes, background..."
+                            {% if errors.notes %}aria-invalid="true" aria-describedby="error-notes"{% endif %}
+                        >{{ form_data.notes|default('') }}</textarea>
+                        {% if errors.notes %}
+                        <div class="form-field-error" id="error-notes" role="alert">{{ errors.notes }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions Bar -->
+            <div class="form-actions">
+                <a href="/leads" class="btn btn-secondary" id="cancel-lead-btn">Cancel</a>
+                <button type="submit" class="btn btn-primary" id="submit-lead-btn">Create Lead</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

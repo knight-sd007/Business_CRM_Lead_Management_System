@@ -4,9 +4,11 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, Qu
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
 from app.config import settings
 from app.database import get_db
 from app.models import User, LeadStatus, LeadPriority
+from app.schemas import LeadCreate
 from app.services.auth_service import AuthService, create_access_token, decode_access_token
 from app.services.lead_service import LeadService
 from app.dependencies import (
@@ -331,3 +333,173 @@ def leads_export_csv_web(
     """
     return RedirectResponse(url="/api/v1/leads/export/csv", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
+
+@router.get("/leads/new", response_class=HTMLResponse)
+def lead_create_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_web),
+    db: Session = Depends(get_db)
+):
+    """
+    Render the authenticated Lead Creation form workspace.
+    Initializes default values matching the authoritative LeadCreate schema.
+    """
+    csrf_token = generate_csrf_token(user_id=current_user.id)
+    initial_data = {
+        "first_name": "",
+        "last_name": "",
+        "email": "",
+        "phone": "",
+        "company_name": "",
+        "job_title": "",
+        "industry": "Technology",
+        "company_size": 10,
+        "annual_revenue": 50000.0,
+        "assigned_owner": "Unassigned",
+        "notes": ""
+    }
+    return templates.TemplateResponse(
+        request=request,
+        name="leads/form.html",
+        context={
+            "user": current_user,
+            "csrf_token": csrf_token,
+            "form_data": initial_data,
+            "errors": {},
+            "error": None
+        },
+        headers=NO_CACHE_HEADERS
+    )
+
+
+@router.post("/leads/new", response_class=HTMLResponse)
+async def lead_create_submit(
+    request: Request,
+    current_user: User = Depends(get_current_user_web),
+    db: Session = Depends(get_db)
+):
+    """
+    Handle lead creation form submission.
+    Validates CSRF token, normalizes form inputs, validates via Pydantic LeadCreate schema,
+    persists through LeadService.create_lead(), and redirects to the Leads Workspace.
+    """
+    form = await request.form()
+    form_data = {k: v for k, v in form.items()}
+    csrf_token = form.get("csrf_token", "")
+
+    # 1. CSRF Token Validation
+    if not validate_csrf_token(csrf_token, user_id=current_user.id):
+        new_csrf_token = generate_csrf_token(user_id=current_user.id)
+        return templates.TemplateResponse(
+            request=request,
+            name="leads/form.html",
+            context={
+                "user": current_user,
+                "csrf_token": new_csrf_token,
+                "form_data": form_data,
+                "errors": {},
+                "error": "Invalid or expired security token. Please try again."
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+            headers=NO_CACHE_HEADERS
+        )
+
+    # 2. Minimal Normalization for Web Form Input
+    first_name_raw = form.get("first_name", "")
+    last_name_raw = form.get("last_name", "")
+    email_raw = form.get("email", "")
+    company_name_raw = form.get("company_name", "")
+    phone_raw = form.get("phone", "")
+    job_title_raw = form.get("job_title", "")
+    industry_raw = form.get("industry", "")
+    company_size_raw = form.get("company_size", "")
+    annual_revenue_raw = form.get("annual_revenue", "")
+    assigned_owner_raw = form.get("assigned_owner", "")
+    notes_raw = form.get("notes", "")
+
+    first_name = first_name_raw.strip() if isinstance(first_name_raw, str) else ""
+    last_name = last_name_raw.strip() if isinstance(last_name_raw, str) else ""
+    email = email_raw.strip() if isinstance(email_raw, str) else ""
+    company_name = company_name_raw.strip() if isinstance(company_name_raw, str) else ""
+
+    phone = phone_raw.strip() if (isinstance(phone_raw, str) and phone_raw.strip()) else None
+    job_title = job_title_raw.strip() if (isinstance(job_title_raw, str) and job_title_raw.strip()) else None
+    industry = industry_raw.strip() if (isinstance(industry_raw, str) and industry_raw.strip()) else "Technology"
+    assigned_owner = assigned_owner_raw.strip() if (isinstance(assigned_owner_raw, str) and assigned_owner_raw.strip()) else "Unassigned"
+    notes = notes_raw.strip() if (isinstance(notes_raw, str) and notes_raw.strip()) else None
+
+    errors: dict[str, str] = {}
+
+    # Parse numeric fields with fallback to schema defaults on empty input
+    company_size_val = None
+    if isinstance(company_size_raw, str) and not company_size_raw.strip():
+        company_size_val = 10
+    else:
+        try:
+            company_size_val = int(company_size_raw)
+        except (ValueError, TypeError):
+            errors["company_size"] = "Company size must be a valid integer."
+
+    annual_revenue_val = None
+    if isinstance(annual_revenue_raw, str) and not annual_revenue_raw.strip():
+        annual_revenue_val = 50000.0
+    else:
+        try:
+            annual_revenue_val = float(annual_revenue_raw)
+        except (ValueError, TypeError):
+            errors["annual_revenue"] = "Annual revenue must be a valid number."
+
+    lead_create: Optional[LeadCreate] = None
+    if not errors:
+        payload_dict = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "phone": phone,
+            "company_name": company_name,
+            "job_title": job_title,
+            "industry": industry,
+            "company_size": company_size_val,
+            "annual_revenue": annual_revenue_val,
+            "assigned_owner": assigned_owner,
+            "notes": notes,
+        }
+
+        try:
+            lead_create = LeadCreate(**payload_dict)
+        except ValidationError as exc:
+            for err in exc.errors():
+                loc = err.get("loc", [])
+                field_name = str(loc[0]) if loc else "general"
+                msg = err.get("msg", "Invalid value.")
+                if msg.startswith("Value error, "):
+                    msg = msg[13:]
+                if field_name not in errors:
+                    errors[field_name] = msg
+
+    if errors or lead_create is None:
+        new_csrf_token = generate_csrf_token(user_id=current_user.id)
+        return templates.TemplateResponse(
+            request=request,
+            name="leads/form.html",
+            context={
+                "user": current_user,
+                "csrf_token": new_csrf_token,
+                "form_data": form_data,
+                "errors": errors,
+                "error": "Please correct the highlighted errors before proceeding."
+            },
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            headers=NO_CACHE_HEADERS
+        )
+
+    # 4. Authoritative Service Execution
+    lead_service = LeadService(db)
+    lead_service.create_lead(lead_create)
+
+    # 5. Success Redirect to Leads Workspace
+    return RedirectResponse(
+        url="/leads",
+        status_code=status.HTTP_303_SEE_OTHER,
+        headers=NO_CACHE_HEADERS
+    )
