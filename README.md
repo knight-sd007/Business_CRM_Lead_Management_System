@@ -105,7 +105,6 @@ Portfolio_02/
 │       └── leads/
 │           ├── form.html         # Lead creation form workspace
 │           └── list.html         # Leads pipeline workspace & filtering directory
-├── docs/                         # Authoritative architectural & milestone reports
 ├── tests/
 │   ├── conftest.py               # Isolated in-memory fixtures & authenticated clients
 │   ├── test_auth.py              # REST authentication & password hashing tests
@@ -124,6 +123,7 @@ Portfolio_02/
 ├── Dockerfile                    # Multi-stage Distroless ARM64 build manifest
 ├── docker-compose.yml            # Container service orchestration
 ├── Jenkinsfile                   # 9-stage CI/CD production deployment pipeline
+├── LICENSE                       # Open-source MIT License
 ├── pyproject.toml                # Build configuration & Pytest settings
 ├── README.md                     # Authoritative system documentation
 ├── requirements-runtime.txt      # Production runtime dependency manifest
@@ -206,7 +206,7 @@ The REST API serves programmatic integrations and microservices. Complete intera
 
 ## 7. Qualification Scoring Engine
 
-Lead qualification is calculated deterministically by [`app/services/scoring_engine.py`](file:///mnt/f/Portfolios/Portfolio_02/app/services/scoring_engine.py) upon creation and whenever key attributes are updated.
+Lead qualification is calculated deterministically by [`app/services/scoring_engine.py`](app/services/scoring_engine.py) upon creation and whenever key attributes are updated.
 
 ```text
 Total Score = Annual Revenue (30 pts) + Company Size (25 pts) + Job Title (25 pts) + Industry Match (20 pts)
@@ -261,7 +261,7 @@ User Roles & Hierarchy:
 3. **Open Redirect Mitigation**:
    - `is_safe_url()` rigorously validates return paths (`?next=`), blocking scheme-relative URLs (`//`), Windows backslash vectors (`/\`), control characters, and external hosts.
 4. **CSV Formula Injection Sanitization**:
-   - [`sanitize_csv_cell()`](file:///mnt/f/Portfolios/Portfolio_02/app/routers/leads.py#L21-L29) scans all string fields before CSV writing, prepending a single quote (`'`) to any cell beginning with formula triggers (`=`, `+`, `-`, `@`, `\t`, `\r`, `\n`, `%`).
+   - [`sanitize_csv_cell()`](app/routers/leads.py#L21-L29) scans all string fields before CSV writing, prepending a single quote (`'`) to any cell beginning with formula triggers (`=`, `+`, `-`, `@`, `\t`, `\r`, `\n`, `%`).
 5. **XSS & Injection Protection**:
    - Full Jinja2 autoescaping enabled across all template variables; strict prohibition of `|safe` filters on untrusted user data.
    - SQLAlchemy ORM parameterized statements for all database queries.
@@ -391,4 +391,4 @@ pytest --cov=app --cov-report=term-missing
 
 ## 14. License
 
-This project is licensed under the terms of the MIT License.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
